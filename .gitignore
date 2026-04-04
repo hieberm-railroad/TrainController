@@ -1,0 +1,17 @@
+# Java build output
+**/target/
+
+# VS Code
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+
+# PlatformIO
+**/.pio/
+
+# Local env and logs
+.env
+.env.*
+*.log

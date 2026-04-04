@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://traincontroller.local/schemas/turnout-intent.schema.json",
+  "title": "TurnoutIntent",
+  "type": "object",
+  "required": [
+    "commandId",
+    "correlationId",
+    "turnoutId",
+    "desiredState",
+    "createdAt"
+  ],
+  "properties": {
+    "commandId": {"type": "string", "minLength": 1},
+    "correlationId": {"type": "string", "minLength": 1},
+    "turnoutId": {"type": "string", "minLength": 1},
+    "desiredState": {"type": "string", "enum": ["OPEN", "CLOSED"]},
+    "createdAt": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}

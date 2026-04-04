@@ -1,0 +1,7 @@
+{
+  "commandId": "cmd-001",
+  "correlationId": "corr-001",
+  "turnoutId": "1",
+  "desiredState": "OPEN",
+  "createdAt": "2026-04-04T12:00:00Z"
+}

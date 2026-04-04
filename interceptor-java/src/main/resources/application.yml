@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/train_controller
+    username: train
+    password: train
+
+interceptor:
+  settle-delay-ms: 750
+  max-retries: 5
+  retry-backoff-ms: 500
+  serial-port: /dev/ttyUSB0
+  serial-baud: 19200
+  mqtt:
+    broker-uri: tcp://localhost:1883
+    client-id: train-interceptor
+    inbound-topic: jmri/intent/turnout/+
