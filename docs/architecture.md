@@ -25,3 +25,10 @@
 - RS485 transport and protocol codec.
 - Reconciliation worker.
 - Metrics and health endpoints.
+
+## Design Documents
+
+- `docs/design/01-domain-lifecycle-and-operations.md`
+- `docs/design/02-mqtt-topics-and-message-contract.md`
+- `docs/design/03-sql-model-and-migrations-plan.md`
+- `docs/design/04-adr-001-di-framework-spring-vs-guice.md`
