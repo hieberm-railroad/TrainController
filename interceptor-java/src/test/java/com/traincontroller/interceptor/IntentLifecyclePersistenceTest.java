@@ -504,6 +504,181 @@ class IntentLifecyclePersistenceTest {
         }
     }
 
+    @Test
+    void pollAndReconcileAckedWithOpenReadbackTransitionsToVerified() {
+        Assumptions.assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
+                "Docker is required for Testcontainers integration test");
+
+        MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:8.4.0");
+        mysqlContainer.withDatabaseName("train_controller");
+        mysqlContainer.withUsername("train");
+        mysqlContainer.withPassword("train");
+
+        try (MySQLContainer<?> mysql = mysqlContainer) {
+            mysql.start();
+
+            DriverManagerDataSource ds = new DriverManagerDataSource();
+            ds.setDriverClassName("com.mysql.cj.jdbc.Driver");
+            ds.setUrl(mysql.getJdbcUrl());
+            ds.setUsername(mysql.getUsername());
+            ds.setPassword(mysql.getPassword());
+
+            this.jdbcTemplate = new JdbcTemplate(ds);
+
+            NamedParameterJdbcTemplate namedTemplate = new NamedParameterJdbcTemplate(ds);
+            this.intentService = new IntentService(
+                    new JdbcIntentRepository(namedTemplate),
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate),
+                    new JdbcDeviceStateRepository(namedTemplate),
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+            );
+            this.commandDispatchService = new CommandDispatchService(
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate)
+            );
+            this.ackIngestionService = new AckIngestionService(
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate)
+            );
+            this.commandVerificationService = new CommandVerificationService(
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcDeviceStateRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate),
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                    command -> java.util.Optional.of("OPEN"),
+                    new InterceptorTelemetry(new SimpleMeterRegistry())
+            );
+
+            applyMigrations(ds);
+            resetTables();
+
+            TurnoutIntent intent = new TurnoutIntent(
+                    "cmd-it-poll-ok-1",
+                    "corr-it-poll-ok-1",
+                    "turnout-12",
+                    TurnoutState.OPEN,
+                    Instant.parse("2026-04-06T13:50:00Z")
+            );
+
+            TransactionTemplate tx = new TransactionTemplate(new DataSourceTransactionManager(ds));
+            tx.executeWithoutResult(status -> intentService.handle(intent));
+            tx.execute(status -> commandDispatchService.dispatchReady(10));
+            tx.execute(status -> ackIngestionService.ingestAck("cmd-it-poll-ok-1", AckStatus.ACCEPTED));
+
+            Integer reconciled = tx.execute(status -> commandVerificationService.pollAndReconcileAcked(10));
+            assertEquals(1, reconciled);
+
+            String status = jdbcTemplate.queryForObject(
+                    "SELECT command_status FROM tc_command WHERE command_id = ?",
+                    String.class,
+                    "cmd-it-poll-ok-1"
+            );
+            assertEquals("VERIFIED", status);
+
+            List<String> lifecycleEvents = jdbcTemplate.queryForList(
+                    "SELECT event_status FROM command_event WHERE command_id = ? ORDER BY id",
+                    String.class,
+                    "cmd-it-poll-ok-1"
+            );
+            assertEquals(
+                    List.of("RECEIVED", "PERSISTED", "DISPATCH_READY", "SENT", "ACKED", "VERIFIED"),
+                    lifecycleEvents
+            );
+        }
+    }
+
+    @Test
+    void pollAndReconcileAckedWithClosedReadbackSchedulesRetry() {
+        Assumptions.assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
+                "Docker is required for Testcontainers integration test");
+
+        MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:8.4.0");
+        mysqlContainer.withDatabaseName("train_controller");
+        mysqlContainer.withUsername("train");
+        mysqlContainer.withPassword("train");
+
+        try (MySQLContainer<?> mysql = mysqlContainer) {
+            mysql.start();
+
+            DriverManagerDataSource ds = new DriverManagerDataSource();
+            ds.setDriverClassName("com.mysql.cj.jdbc.Driver");
+            ds.setUrl(mysql.getJdbcUrl());
+            ds.setUsername(mysql.getUsername());
+            ds.setPassword(mysql.getPassword());
+
+            this.jdbcTemplate = new JdbcTemplate(ds);
+
+            NamedParameterJdbcTemplate namedTemplate = new NamedParameterJdbcTemplate(ds);
+            this.intentService = new IntentService(
+                    new JdbcIntentRepository(namedTemplate),
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate),
+                    new JdbcDeviceStateRepository(namedTemplate),
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+            );
+            this.commandDispatchService = new CommandDispatchService(
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate)
+            );
+            this.ackIngestionService = new AckIngestionService(
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate)
+            );
+            this.commandVerificationService = new CommandVerificationService(
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcDeviceStateRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate),
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                    command -> java.util.Optional.of("CLOSED"),
+                    new InterceptorTelemetry(new SimpleMeterRegistry())
+            );
+
+            applyMigrations(ds);
+            resetTables();
+
+            TurnoutIntent intent = new TurnoutIntent(
+                    "cmd-it-poll-retry-1",
+                    "corr-it-poll-retry-1",
+                    "turnout-12",
+                    TurnoutState.OPEN,
+                    Instant.parse("2026-04-06T13:55:00Z")
+            );
+
+            TransactionTemplate tx = new TransactionTemplate(new DataSourceTransactionManager(ds));
+            tx.executeWithoutResult(status -> intentService.handle(intent));
+            tx.execute(status -> commandDispatchService.dispatchReady(10));
+            tx.execute(status -> ackIngestionService.ingestAck("cmd-it-poll-retry-1", AckStatus.ACCEPTED));
+
+            Integer reconciled = tx.execute(status -> commandVerificationService.pollAndReconcileAcked(10));
+            assertEquals(1, reconciled);
+
+            String status = jdbcTemplate.queryForObject(
+                    "SELECT command_status FROM tc_command WHERE command_id = ?",
+                    String.class,
+                    "cmd-it-poll-retry-1"
+            );
+            assertEquals("RETRY_SCHEDULED", status);
+
+            Integer retryCount = jdbcTemplate.queryForObject(
+                    "SELECT retry_count FROM tc_command WHERE command_id = ?",
+                    Integer.class,
+                    "cmd-it-poll-retry-1"
+            );
+            assertEquals(1, retryCount);
+
+            List<String> lifecycleEvents = jdbcTemplate.queryForList(
+                    "SELECT event_status FROM command_event WHERE command_id = ? ORDER BY id",
+                    String.class,
+                    "cmd-it-poll-retry-1"
+            );
+            assertEquals(
+                    List.of("RECEIVED", "PERSISTED", "DISPATCH_READY", "SENT", "ACKED", "RETRY_SCHEDULED"),
+                    lifecycleEvents
+            );
+        }
+    }
+
         private void applyMigrations(DataSource dataSource) {
         Path v1 = Path.of("..", "migrations", "V1__initial_schema.sql").toAbsolutePath().normalize();
         Path v2 = Path.of("..", "migrations", "V2__normalized_command_model.sql").toAbsolutePath().normalize();
