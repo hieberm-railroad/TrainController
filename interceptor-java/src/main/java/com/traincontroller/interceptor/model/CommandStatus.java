@@ -1,11 +1,14 @@
 package com.traincontroller.interceptor.model;
 
 public enum CommandStatus {
-    PENDING,
-    DISPATCHED,
+    RECEIVED,
+    PERSISTED,
+    DISPATCH_READY,
+    SENT,
     ACKED,
-    VERIFYING,
+    VERIFY_PENDING,
     VERIFIED,
-    RETRYING,
-    FAILED
+    RETRY_SCHEDULED,
+    FAILED,
+    CANCELLED
 }
