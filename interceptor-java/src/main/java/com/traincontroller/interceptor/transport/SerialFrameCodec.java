@@ -11,11 +11,18 @@ public final class SerialFrameCodec {
     public record AckFrame(String nodeId, String commandId, AckStatus ackStatus) {
     }
 
+    public record StateFrame(String actualState) {
+    }
+
     private SerialFrameCodec() {
     }
 
     public static byte[] encodeTurnoutCommand(String nodeId, TurnoutIntent intent) {
         return encodeTurnoutCommand(nodeId, intent.commandId(), intent.turnoutId(), intent.desiredState().name());
+    }
+
+    public static byte[] encodeTurnoutStateQuery() {
+        return "QSTATE\n".getBytes(StandardCharsets.US_ASCII);
     }
 
     public static byte[] encodeTurnoutCommand(String nodeId, String commandId, String turnoutId, String desiredState) {
@@ -66,5 +73,23 @@ public final class SerialFrameCodec {
         } catch (IllegalArgumentException invalidStatus) {
             return Optional.empty();
         }
+    }
+
+    public static Optional<StateFrame> decodeStateFrame(String frame) {
+        if (frame == null || frame.isBlank()) {
+            return Optional.empty();
+        }
+
+        String trimmed = frame.trim();
+        String[] parts = trimmed.split("\\|");
+        if (parts.length != 2 || !"STATE".equals(parts[0])) {
+            return Optional.empty();
+        }
+
+        String actualState = parts[1].toUpperCase(Locale.ROOT);
+        if (!"OPEN".equals(actualState) && !"CLOSED".equals(actualState)) {
+            return Optional.empty();
+        }
+        return Optional.of(new StateFrame(actualState));
     }
 }

@@ -49,4 +49,23 @@ class SerialFrameCodecTest {
         Optional<SerialFrameCodec.AckFrame> decoded = SerialFrameCodec.decodeAckFrame(frame);
         assertTrue(decoded.isEmpty());
     }
+
+    @Test
+    void encodesTurnoutStateQueryFrame() {
+        String frame = new String(SerialFrameCodec.encodeTurnoutStateQuery(), StandardCharsets.US_ASCII);
+        assertEquals("QSTATE\n", frame);
+    }
+
+    @Test
+    void decodesLegacyStateFrame() {
+        Optional<SerialFrameCodec.StateFrame> decoded = SerialFrameCodec.decodeStateFrame("STATE|OPEN\n");
+        assertTrue(decoded.isPresent());
+        assertEquals("OPEN", decoded.get().actualState());
+    }
+
+    @Test
+    void rejectsInvalidStateFrame() {
+        Optional<SerialFrameCodec.StateFrame> decoded = SerialFrameCodec.decodeStateFrame("STATE|MIDDLE\n");
+        assertTrue(decoded.isEmpty());
+    }
 }

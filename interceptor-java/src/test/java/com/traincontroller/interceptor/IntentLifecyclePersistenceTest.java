@@ -119,7 +119,8 @@ class IntentLifecyclePersistenceTest {
                     new JdbcTcCommandRepository(namedTemplate),
                     new JdbcDeviceStateRepository(namedTemplate),
                     new JdbcCommandEventRepository(namedTemplate),
-                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                    command -> java.util.Optional.empty()
             );
             this.commandTransportService = new CommandTransportService(
                     new JdbcTcCommandRepository(namedTemplate),
@@ -422,7 +423,8 @@ class IntentLifecyclePersistenceTest {
                     new JdbcTcCommandRepository(namedTemplate),
                     new JdbcDeviceStateRepository(namedTemplate),
                     new JdbcCommandEventRepository(namedTemplate),
-                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                    command -> java.util.Optional.empty()
             );
 
             applyMigrations(ds);

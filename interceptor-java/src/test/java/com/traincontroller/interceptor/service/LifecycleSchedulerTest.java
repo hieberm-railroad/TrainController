@@ -20,18 +20,28 @@ class LifecycleSchedulerTest {
     @Mock
     private CommandTransportService commandTransportService;
 
+    @Mock
+    private CommandVerificationService commandVerificationService;
+
     @Test
     void runCycleInvokesReadyAndRetryDispatch() {
-        LifecycleScheduler scheduler = new LifecycleScheduler(commandDispatchService, commandTransportService, 25);
+        LifecycleScheduler scheduler = new LifecycleScheduler(
+            commandDispatchService,
+            commandTransportService,
+            commandVerificationService,
+            25
+        );
 
         when(commandDispatchService.dispatchReady(25)).thenReturn(2);
         when(commandDispatchService.dispatchRetriesDue(any(Instant.class), org.mockito.ArgumentMatchers.eq(25))).thenReturn(1);
         when(commandTransportService.sendPending(25)).thenReturn(1);
+        when(commandVerificationService.pollAndReconcileAcked(25)).thenReturn(1);
 
         scheduler.runCycle();
 
         verify(commandDispatchService, times(1)).dispatchReady(25);
         verify(commandDispatchService, times(1)).dispatchRetriesDue(any(Instant.class), org.mockito.ArgumentMatchers.eq(25));
         verify(commandTransportService, times(1)).sendPending(25);
+        verify(commandVerificationService, times(1)).pollAndReconcileAcked(25);
     }
 }

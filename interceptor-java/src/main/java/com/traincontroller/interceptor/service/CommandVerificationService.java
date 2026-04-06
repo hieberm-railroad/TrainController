@@ -9,7 +9,9 @@ import com.traincontroller.interceptor.persistence.DeviceStateEntity;
 import com.traincontroller.interceptor.persistence.DeviceStateRepository;
 import com.traincontroller.interceptor.persistence.TcCommandEntity;
 import com.traincontroller.interceptor.persistence.TcCommandRepository;
+import com.traincontroller.interceptor.transport.TurnoutStateReadbackAdapter;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,17 +29,38 @@ public class CommandVerificationService {
     private final DeviceStateRepository deviceStateRepository;
     private final CommandEventRepository commandEventRepository;
     private final InterceptorProperties interceptorProperties;
+    private final TurnoutStateReadbackAdapter turnoutStateReadbackAdapter;
 
     public CommandVerificationService(
             TcCommandRepository tcCommandRepository,
             DeviceStateRepository deviceStateRepository,
             CommandEventRepository commandEventRepository,
-            InterceptorProperties interceptorProperties
+            InterceptorProperties interceptorProperties,
+            TurnoutStateReadbackAdapter turnoutStateReadbackAdapter
     ) {
         this.tcCommandRepository = tcCommandRepository;
         this.deviceStateRepository = deviceStateRepository;
         this.commandEventRepository = commandEventRepository;
         this.interceptorProperties = interceptorProperties;
+        this.turnoutStateReadbackAdapter = turnoutStateReadbackAdapter;
+    }
+
+    @Transactional
+    public int pollAndReconcileAcked(int batchSize) {
+        List<TcCommandEntity> ackedCommands = tcCommandRepository.findByStatus(CommandStatus.ACKED, batchSize);
+
+        int reconciled = 0;
+        for (TcCommandEntity command : ackedCommands) {
+            Optional<String> actualState = turnoutStateReadbackAdapter.readActualState(command);
+            if (actualState.isEmpty()) {
+                continue;
+            }
+
+            if (reconcileAcked(command.commandId(), actualState.get(), Instant.now())) {
+                reconciled++;
+            }
+        }
+        return reconciled;
     }
 
     @Transactional

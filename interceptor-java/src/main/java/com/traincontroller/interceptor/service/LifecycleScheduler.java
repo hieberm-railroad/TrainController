@@ -14,15 +14,18 @@ public class LifecycleScheduler {
 
     private final CommandDispatchService commandDispatchService;
     private final CommandTransportService commandTransportService;
+    private final CommandVerificationService commandVerificationService;
     private final int batchSize;
 
     public LifecycleScheduler(
             CommandDispatchService commandDispatchService,
             CommandTransportService commandTransportService,
+            CommandVerificationService commandVerificationService,
             @Value("${interceptor.scheduler.batch-size:50}") int batchSize
     ) {
         this.commandDispatchService = commandDispatchService;
         this.commandTransportService = commandTransportService;
+        this.commandVerificationService = commandVerificationService;
         this.batchSize = batchSize;
     }
 
@@ -31,10 +34,11 @@ public class LifecycleScheduler {
         int dispatchedReady = commandDispatchService.dispatchReady(batchSize);
         int dispatchedRetries = commandDispatchService.dispatchRetriesDue(Instant.now(), batchSize);
         int sent = commandTransportService.sendPending(batchSize);
+        int reconciled = commandVerificationService.pollAndReconcileAcked(batchSize);
 
-        if (dispatchedReady > 0 || dispatchedRetries > 0 || sent > 0) {
-            log.info("Lifecycle scheduler cycle dispatchedReady={} dispatchedRetries={} sent={}",
-                    dispatchedReady, dispatchedRetries, sent);
+        if (dispatchedReady > 0 || dispatchedRetries > 0 || sent > 0 || reconciled > 0) {
+            log.info("Lifecycle scheduler cycle dispatchedReady={} dispatchedRetries={} sent={} reconciled={}",
+                    dispatchedReady, dispatchedRetries, sent, reconciled);
         }
     }
 }
