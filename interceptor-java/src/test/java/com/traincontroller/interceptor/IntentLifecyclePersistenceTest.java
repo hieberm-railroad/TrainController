@@ -7,6 +7,7 @@ import com.traincontroller.interceptor.persistence.jdbc.JdbcCommandEventReposito
 import com.traincontroller.interceptor.persistence.jdbc.JdbcDeviceStateRepository;
 import com.traincontroller.interceptor.persistence.jdbc.JdbcIntentRepository;
 import com.traincontroller.interceptor.persistence.jdbc.JdbcTcCommandRepository;
+import com.traincontroller.interceptor.service.CommandDispatchService;
 import com.traincontroller.interceptor.service.IntentService;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -38,12 +39,14 @@ class IntentLifecyclePersistenceTest {
     private DataSource dataSource;
     private JdbcTemplate jdbcTemplate;
     private IntentService intentService;
+        private CommandDispatchService commandDispatchService;
 
         @AfterEach
         void cleanupState() {
                 this.dataSource = null;
                 this.jdbcTemplate = null;
                 this.intentService = null;
+                this.commandDispatchService = null;
         }
 
     @BeforeEach
@@ -92,6 +95,10 @@ class IntentLifecyclePersistenceTest {
                     new JdbcCommandEventRepository(namedTemplate),
                     new JdbcDeviceStateRepository(namedTemplate),
                     new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+            );
+            this.commandDispatchService = new CommandDispatchService(
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate)
             );
 
             applyMigrations();
@@ -145,6 +152,23 @@ class IntentLifecyclePersistenceTest {
                     "cmd-it-1"
             );
             assertNotNull(persistedIntentId);
+
+            Integer dispatched = tx.execute(statusTx -> commandDispatchService.dispatchReady(10));
+            assertEquals(1, dispatched);
+
+            String sentStatus = jdbcTemplate.queryForObject(
+                    "SELECT command_status FROM tc_command WHERE command_id = ?",
+                    String.class,
+                    "cmd-it-1"
+            );
+            assertEquals("SENT", sentStatus);
+
+            List<String> sentLifecycleEvents = jdbcTemplate.queryForList(
+                    "SELECT event_status FROM command_event WHERE command_id = ? ORDER BY id",
+                    String.class,
+                    "cmd-it-1"
+            );
+            assertEquals(List.of("RECEIVED", "PERSISTED", "DISPATCH_READY", "SENT"), sentLifecycleEvents);
         }
     }
 
@@ -175,6 +199,10 @@ class IntentLifecyclePersistenceTest {
                                         new JdbcCommandEventRepository(namedTemplate),
                                         new JdbcDeviceStateRepository(namedTemplate),
                                         new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                        );
+                        this.commandDispatchService = new CommandDispatchService(
+                                        new JdbcTcCommandRepository(namedTemplate),
+                                        new JdbcCommandEventRepository(namedTemplate)
                         );
 
                         applyMigrations();
