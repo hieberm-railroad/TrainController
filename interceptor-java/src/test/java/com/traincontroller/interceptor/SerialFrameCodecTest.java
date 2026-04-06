@@ -5,8 +5,10 @@ import com.traincontroller.interceptor.model.TurnoutState;
 import com.traincontroller.interceptor.transport.SerialFrameCodec;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SerialFrameCodecTest {
@@ -25,5 +27,26 @@ class SerialFrameCodecTest {
 
         assertTrue(frame.startsWith("v1|node-1|cmd-1|TURNOUT|1|OPEN|"));
         assertTrue(frame.endsWith("\n"));
+    }
+
+    @Test
+    void decodesAckFrameWithValidChecksum() {
+        String payload = "v1|node-1|cmd-1|ACK|ACCEPTED";
+        int checksum = payload.chars().reduce(0, (acc, ch) -> (acc + ch) & 0xFF);
+        String frame = payload + "|" + String.format("%02X", checksum) + "\n";
+
+        Optional<SerialFrameCodec.AckFrame> decoded = SerialFrameCodec.decodeAckFrame(frame);
+
+        assertTrue(decoded.isPresent());
+        assertEquals("node-1", decoded.get().nodeId());
+        assertEquals("cmd-1", decoded.get().commandId());
+        assertEquals("ACCEPTED", decoded.get().ackStatus().name());
+    }
+
+    @Test
+    void rejectsAckFrameWithInvalidChecksum() {
+        String frame = "v1|node-1|cmd-1|ACK|ACCEPTED|00\n";
+        Optional<SerialFrameCodec.AckFrame> decoded = SerialFrameCodec.decodeAckFrame(frame);
+        assertTrue(decoded.isEmpty());
     }
 }

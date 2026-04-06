@@ -17,6 +17,7 @@ import com.traincontroller.interceptor.transport.TransportSendResult;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import org.junit.jupiter.api.AfterEach;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,7 +42,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class IntentLifecyclePersistenceTest {
 
-    private DataSource dataSource;
     private JdbcTemplate jdbcTemplate;
     private IntentService intentService;
         private CommandDispatchService commandDispatchService;
@@ -51,7 +51,6 @@ class IntentLifecyclePersistenceTest {
 
         @AfterEach
         void cleanupState() {
-                this.dataSource = null;
                 this.jdbcTemplate = null;
                 this.intentService = null;
                 this.commandDispatchService = null;
@@ -84,10 +83,12 @@ class IntentLifecyclePersistenceTest {
         Assumptions.assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
                 "Docker is required for Testcontainers integration test");
 
-        try (MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.4.0")
-                .withDatabaseName("train_controller")
-                .withUsername("train")
-                .withPassword("train")) {
+        MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:8.4.0");
+        mysqlContainer.withDatabaseName("train_controller");
+        mysqlContainer.withUsername("train");
+        mysqlContainer.withPassword("train");
+
+        try (MySQLContainer<?> mysql = mysqlContainer) {
             mysql.start();
 
             DriverManagerDataSource ds = new DriverManagerDataSource();
@@ -96,7 +97,6 @@ class IntentLifecyclePersistenceTest {
             ds.setUsername(mysql.getUsername());
             ds.setPassword(mysql.getPassword());
 
-            this.dataSource = ds;
             this.jdbcTemplate = new JdbcTemplate(ds);
 
             NamedParameterJdbcTemplate namedTemplate = new NamedParameterJdbcTemplate(ds);
@@ -130,7 +130,7 @@ class IntentLifecyclePersistenceTest {
                     new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
             );
 
-            applyMigrations();
+            applyMigrations(ds);
             resetTables();
 
             TurnoutIntent intent = new TurnoutIntent(
@@ -254,10 +254,12 @@ class IntentLifecyclePersistenceTest {
                 Assumptions.assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
                                 "Docker is required for Testcontainers integration test");
 
-                try (MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.4.0")
-                                .withDatabaseName("train_controller")
-                                .withUsername("train")
-                                .withPassword("train")) {
+                MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:8.4.0");
+                mysqlContainer.withDatabaseName("train_controller");
+                mysqlContainer.withUsername("train");
+                mysqlContainer.withPassword("train");
+
+                try (MySQLContainer<?> mysql = mysqlContainer) {
                         mysql.start();
 
                         DriverManagerDataSource ds = new DriverManagerDataSource();
@@ -266,7 +268,6 @@ class IntentLifecyclePersistenceTest {
                         ds.setUsername(mysql.getUsername());
                         ds.setPassword(mysql.getPassword());
 
-                        this.dataSource = ds;
                         this.jdbcTemplate = new JdbcTemplate(ds);
 
                         NamedParameterJdbcTemplate namedTemplate = new NamedParameterJdbcTemplate(ds);
@@ -286,7 +287,7 @@ class IntentLifecyclePersistenceTest {
                                         new JdbcCommandEventRepository(namedTemplate)
                         );
 
-                        applyMigrations();
+                        applyMigrations(ds);
                         resetTables();
 
                         TurnoutIntent intent = new TurnoutIntent(
@@ -318,10 +319,12 @@ class IntentLifecyclePersistenceTest {
         Assumptions.assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
                 "Docker is required for Testcontainers integration test");
 
-        try (MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.4.0")
-                .withDatabaseName("train_controller")
-                .withUsername("train")
-                .withPassword("train")) {
+        MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:8.4.0");
+        mysqlContainer.withDatabaseName("train_controller");
+        mysqlContainer.withUsername("train");
+        mysqlContainer.withPassword("train");
+
+        try (MySQLContainer<?> mysql = mysqlContainer) {
             mysql.start();
 
             DriverManagerDataSource ds = new DriverManagerDataSource();
@@ -330,7 +333,6 @@ class IntentLifecyclePersistenceTest {
             ds.setUsername(mysql.getUsername());
             ds.setPassword(mysql.getPassword());
 
-            this.dataSource = ds;
             this.jdbcTemplate = new JdbcTemplate(ds);
 
             NamedParameterJdbcTemplate namedTemplate = new NamedParameterJdbcTemplate(ds);
@@ -346,7 +348,7 @@ class IntentLifecyclePersistenceTest {
                     new JdbcCommandEventRepository(namedTemplate)
             );
 
-            applyMigrations();
+            applyMigrations(ds);
             resetTables();
 
             TurnoutIntent intent = new TurnoutIntent(
@@ -384,10 +386,12 @@ class IntentLifecyclePersistenceTest {
         Assumptions.assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
                 "Docker is required for Testcontainers integration test");
 
-        try (MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.4.0")
-                .withDatabaseName("train_controller")
-                .withUsername("train")
-                .withPassword("train")) {
+        MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:8.4.0");
+        mysqlContainer.withDatabaseName("train_controller");
+        mysqlContainer.withUsername("train");
+        mysqlContainer.withPassword("train");
+
+        try (MySQLContainer<?> mysql = mysqlContainer) {
             mysql.start();
 
             DriverManagerDataSource ds = new DriverManagerDataSource();
@@ -396,7 +400,6 @@ class IntentLifecyclePersistenceTest {
             ds.setUsername(mysql.getUsername());
             ds.setPassword(mysql.getPassword());
 
-            this.dataSource = ds;
             this.jdbcTemplate = new JdbcTemplate(ds);
 
             NamedParameterJdbcTemplate namedTemplate = new NamedParameterJdbcTemplate(ds);
@@ -422,7 +425,7 @@ class IntentLifecyclePersistenceTest {
                     new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
             );
 
-            applyMigrations();
+            applyMigrations(ds);
             resetTables();
 
             TurnoutIntent intent = new TurnoutIntent(
@@ -494,14 +497,14 @@ class IntentLifecyclePersistenceTest {
         }
     }
 
-    private void applyMigrations() {
+        private void applyMigrations(DataSource dataSource) {
         Path v1 = Path.of("..", "migrations", "V1__initial_schema.sql").toAbsolutePath().normalize();
         Path v2 = Path.of("..", "migrations", "V2__normalized_command_model.sql").toAbsolutePath().normalize();
 
         ResourceDatabasePopulator populator = new ResourceDatabasePopulator(
-                new FileSystemResource(v1),
-                new FileSystemResource(v2)
+                                new FileSystemResource(Objects.requireNonNull(v1)),
+                                new FileSystemResource(Objects.requireNonNull(v2))
         );
-        DatabasePopulatorUtils.execute(populator, dataSource);
+                DatabasePopulatorUtils.execute(populator, Objects.requireNonNull(dataSource));
     }
 }
