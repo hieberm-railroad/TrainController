@@ -11,6 +11,7 @@ import com.traincontroller.interceptor.service.IntentService;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,7 @@ import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.MySQLContainer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -36,6 +38,13 @@ class IntentLifecyclePersistenceTest {
     private DataSource dataSource;
     private JdbcTemplate jdbcTemplate;
     private IntentService intentService;
+
+        @AfterEach
+        void cleanupState() {
+                this.dataSource = null;
+                this.jdbcTemplate = null;
+                this.intentService = null;
+        }
 
     @BeforeEach
     void resetTables() {
@@ -138,6 +147,62 @@ class IntentLifecyclePersistenceTest {
             assertNotNull(persistedIntentId);
         }
     }
+
+        @Test
+        void handleDuplicateCommandIdIsIdempotentAcrossCoreTables() {
+                Assumptions.assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
+                                "Docker is required for Testcontainers integration test");
+
+                try (MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.4.0")
+                                .withDatabaseName("train_controller")
+                                .withUsername("train")
+                                .withPassword("train")) {
+                        mysql.start();
+
+                        DriverManagerDataSource ds = new DriverManagerDataSource();
+                        ds.setDriverClassName("com.mysql.cj.jdbc.Driver");
+                        ds.setUrl(mysql.getJdbcUrl());
+                        ds.setUsername(mysql.getUsername());
+                        ds.setPassword(mysql.getPassword());
+
+                        this.dataSource = ds;
+                        this.jdbcTemplate = new JdbcTemplate(ds);
+
+                        NamedParameterJdbcTemplate namedTemplate = new NamedParameterJdbcTemplate(ds);
+                        this.intentService = new IntentService(
+                                        new JdbcIntentRepository(namedTemplate),
+                                        new JdbcTcCommandRepository(namedTemplate),
+                                        new JdbcCommandEventRepository(namedTemplate),
+                                        new JdbcDeviceStateRepository(namedTemplate),
+                                        new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                        );
+
+                        applyMigrations();
+                        resetTables();
+
+                        TurnoutIntent intent = new TurnoutIntent(
+                                        "cmd-it-dup-1",
+                                        "corr-it-dup-1",
+                                        "turnout-12",
+                                        TurnoutState.OPEN,
+                                        Instant.parse("2026-04-06T13:15:00Z")
+                        );
+
+                        TransactionTemplate tx = new TransactionTemplate(new DataSourceTransactionManager(ds));
+                        tx.executeWithoutResult(status -> intentService.handle(intent));
+                        assertDoesNotThrow(() -> tx.executeWithoutResult(status -> intentService.handle(intent)));
+
+                        Integer intentCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM intent", Integer.class);
+                        Integer commandCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tc_command", Integer.class);
+                        Integer eventCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM command_event", Integer.class);
+                        Integer deviceStateCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM device_state", Integer.class);
+
+                        assertEquals(1, intentCount);
+                        assertEquals(1, commandCount);
+                        assertEquals(3, eventCount);
+                        assertEquals(1, deviceStateCount);
+                }
+        }
 
     private void applyMigrations() {
         Path v1 = Path.of("..", "migrations", "V1__initial_schema.sql").toAbsolutePath().normalize();

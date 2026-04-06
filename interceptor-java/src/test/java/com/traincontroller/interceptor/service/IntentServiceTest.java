@@ -22,11 +22,16 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class IntentServiceTest {
@@ -61,10 +66,15 @@ class IntentServiceTest {
                 Instant.parse("2026-04-06T12:00:00Z")
         );
 
+        when(intentRepository.upsert(any(IntentEntity.class))).thenAnswer(invocation -> {
+            IntentEntity candidate = invocation.getArgument(0);
+            return candidate.intentId();
+        });
+
         service.handle(intent);
 
         ArgumentCaptor<IntentEntity> intentCaptor = ArgumentCaptor.forClass(IntentEntity.class);
-        verify(intentRepository).insert(intentCaptor.capture());
+        verify(intentRepository).upsert(intentCaptor.capture());
 
         IntentEntity persistedIntent = intentCaptor.getValue();
         assertNotNull(persistedIntent.intentId());
@@ -107,5 +117,37 @@ class IntentServiceTest {
         assertEquals("OPEN", state.desiredState());
         assertEquals("cmd-100", state.lastCommandId());
         assertEquals(StateQuality.UNKNOWN, state.stateQuality());
+    }
+
+    @Test
+    void handleDuplicateCommandIdIsNoOpAfterIntentUpsert() {
+        IntentService service = new IntentService(
+                intentRepository,
+                tcCommandRepository,
+                commandEventRepository,
+                deviceStateRepository,
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+        );
+
+        TurnoutIntent intent = new TurnoutIntent(
+                "cmd-dup-1",
+                "corr-dup-1",
+                "turnout-12",
+                TurnoutState.OPEN,
+                Instant.parse("2026-04-06T12:00:00Z")
+        );
+
+        when(intentRepository.upsert(any(IntentEntity.class))).thenReturn("intent-existing-1");
+        org.mockito.Mockito.doThrow(new DataIntegrityViolationException("duplicate key"))
+                .when(tcCommandRepository)
+                .insert(any(TcCommandEntity.class));
+
+        service.handle(intent);
+
+        verify(intentRepository, times(1)).upsert(any(IntentEntity.class));
+        verify(tcCommandRepository, times(1)).insert(any(TcCommandEntity.class));
+        verify(tcCommandRepository, never()).updateStatus(any(String.class), any(CommandStatus.class), any());
+        verify(commandEventRepository, never()).append(any(CommandEventEntity.class));
+        verify(deviceStateRepository, never()).upsert(any(DeviceStateEntity.class));
     }
 }

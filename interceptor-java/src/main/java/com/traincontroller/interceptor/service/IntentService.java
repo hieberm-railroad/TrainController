@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,12 +53,12 @@ public class IntentService {
     @Transactional
     public void handle(TurnoutIntent intent) {
         Instant now = intent.createdAt() == null ? Instant.now() : intent.createdAt();
-        String intentId = UUID.randomUUID().toString();
+        String candidateIntentId = UUID.randomUUID().toString();
         String deviceId = intent.turnoutId();
         String desiredState = intent.desiredState().name();
 
-        intentRepository.insert(new IntentEntity(
-                intentId,
+        String intentId = intentRepository.upsert(new IntentEntity(
+                candidateIntentId,
                 intent.correlationId(),
                 SOURCE_SYSTEM_JMRI,
                 deviceId,
@@ -69,21 +70,26 @@ public class IntentService {
                 null
         ));
 
-        tcCommandRepository.insert(new TcCommandEntity(
-                intent.commandId(),
-                intentId,
-                intent.correlationId(),
-                deviceId,
-                deriveNodeId(intent),
-                OperationType.TURNOUT_SET,
-                desiredState,
-                CommandStatus.RECEIVED,
-                0,
-                interceptorProperties.maxRetries(),
-                interceptorProperties.settleDelayMs(),
-                null,
-                null
-        ));
+        try {
+            tcCommandRepository.insert(new TcCommandEntity(
+                    intent.commandId(),
+                    intentId,
+                    intent.correlationId(),
+                    deviceId,
+                    deriveNodeId(intent),
+                    OperationType.TURNOUT_SET,
+                    desiredState,
+                    CommandStatus.RECEIVED,
+                    0,
+                    interceptorProperties.maxRetries(),
+                    interceptorProperties.settleDelayMs(),
+                    null,
+                    null
+            ));
+        } catch (DataIntegrityViolationException e) {
+            log.info("Ignoring duplicate commandId={} correlationId={}", intent.commandId(), intent.correlationId());
+            return;
+        }
 
         appendLifecycleEvent(intent.commandId(), intentId, CommandStatus.RECEIVED);
         tcCommandRepository.updateStatus(intent.commandId(), CommandStatus.PERSISTED, null);

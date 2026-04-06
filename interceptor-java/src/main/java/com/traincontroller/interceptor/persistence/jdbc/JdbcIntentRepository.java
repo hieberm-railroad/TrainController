@@ -4,6 +4,7 @@ import com.traincontroller.interceptor.persistence.IntentEntity;
 import com.traincontroller.interceptor.persistence.IntentRepository;
 import java.sql.Timestamp;
 import java.time.Instant;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -21,6 +22,13 @@ public class JdbcIntentRepository implements IntentRepository {
             )
             """;
 
+        private static final String FIND_INTENT_ID_SQL = """
+                        SELECT intent_id
+                        FROM intent
+                        WHERE correlation_id = :correlationId
+                            AND device_id = :deviceId
+                        """;
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public JdbcIntentRepository(NamedParameterJdbcTemplate jdbcTemplate) {
@@ -28,7 +36,20 @@ public class JdbcIntentRepository implements IntentRepository {
     }
 
     @Override
-    public void insert(IntentEntity intent) {
+    public String upsert(IntentEntity intent) {
+        MapSqlParameterSource keyParams = new MapSqlParameterSource()
+            .addValue("correlationId", intent.correlationId())
+            .addValue("deviceId", intent.deviceId());
+
+        String existingIntentId = jdbcTemplate.query(
+                FIND_INTENT_ID_SQL,
+                keyParams,
+                rs -> rs.next() ? rs.getString("intent_id") : null
+        );
+        if (existingIntentId != null) {
+            return existingIntentId;
+        }
+
         MapSqlParameterSource params = new MapSqlParameterSource()
             .addValue("intentId", intent.intentId())
             .addValue("correlationId", intent.correlationId())
@@ -40,7 +61,21 @@ public class JdbcIntentRepository implements IntentRepository {
             .addValue("acceptedAt", asTimestamp(intent.acceptedAt()))
             .addValue("status", intent.status().name())
             .addValue("rejectReason", intent.rejectReason());
-        jdbcTemplate.update(INSERT_SQL, params);
+
+        try {
+            jdbcTemplate.update(INSERT_SQL, params);
+            return intent.intentId();
+        } catch (DuplicateKeyException ignored) {
+            String persistedIntentId = jdbcTemplate.query(
+                    FIND_INTENT_ID_SQL,
+                    keyParams,
+                    rs -> rs.next() ? rs.getString("intent_id") : null
+            );
+            if (persistedIntentId != null) {
+                return persistedIntentId;
+            }
+            throw ignored;
+        }
     }
 
     private static Timestamp asTimestamp(Instant instant) {
