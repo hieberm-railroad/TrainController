@@ -14,3 +14,19 @@ interceptor:
     broker-uri: tcp://localhost:1883
     client-id: train-interceptor
     inbound-topic: jmri/intent/turnout/+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      service: interceptor-java

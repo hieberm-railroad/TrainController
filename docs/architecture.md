@@ -32,3 +32,7 @@
 - `docs/design/02-mqtt-topics-and-message-contract.md`
 - `docs/design/03-sql-model-and-migrations-plan.md`
 - `docs/design/04-adr-001-di-framework-spring-vs-guice.md`
+
+## Operations Runbooks
+
+- `docs/operations/hardware-soak-validation.md`
