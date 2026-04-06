@@ -57,6 +57,29 @@ public class JdbcTcCommandRepository implements TcCommandRepository {
             LIMIT :limitRows
             """;
 
+        private static final String SELECT_RETRY_DUE_SQL = """
+                        SELECT
+                                command_id,
+                                intent_id,
+                                correlation_id,
+                                device_id,
+                                node_id,
+                                operation_type,
+                                desired_state,
+                                command_status,
+                                retry_count,
+                                max_retries,
+                                settle_delay_ms,
+                                next_attempt_at,
+                                failure_reason
+                        FROM tc_command
+                        WHERE command_status = 'RETRY_SCHEDULED'
+                            AND next_attempt_at IS NOT NULL
+                            AND next_attempt_at <= :nowTs
+                        ORDER BY next_attempt_at
+                        LIMIT :limitRows
+                        """;
+
     private static final String UPDATE_STATUS_IF_CURRENT_SQL = """
             UPDATE tc_command
             SET command_status = :newStatus,
@@ -142,6 +165,17 @@ public class JdbcTcCommandRepository implements TcCommandRepository {
                 (rs, rowNum) -> mapRow(rs)
         );
     }
+
+        @Override
+        public List<TcCommandEntity> findRetryScheduledDue(Instant now, int limit) {
+        return jdbcTemplate.query(
+            SELECT_RETRY_DUE_SQL,
+            new MapSqlParameterSource()
+                .addValue("nowTs", asTimestamp(now))
+                .addValue("limitRows", limit),
+            (rs, rowNum) -> mapRow(rs)
+        );
+        }
 
     @Override
     public Optional<TcCommandEntity> findByCommandId(String commandId) {

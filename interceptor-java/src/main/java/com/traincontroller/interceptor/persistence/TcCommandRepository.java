@@ -12,6 +12,8 @@ public interface TcCommandRepository {
 
     List<TcCommandEntity> findByStatus(CommandStatus status, int limit);
 
+    List<TcCommandEntity> findRetryScheduledDue(Instant now, int limit);
+
     Optional<TcCommandEntity> findByCommandId(String commandId);
 
     int updateStatusIfCurrent(

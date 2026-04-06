@@ -446,6 +446,29 @@ class IntentLifecyclePersistenceTest {
                     List.of("RECEIVED", "PERSISTED", "DISPATCH_READY", "SENT", "ACKED", "RETRY_SCHEDULED"),
                     lifecycleEvents
             );
+
+            Integer dispatchedRetry = tx.execute(txStatus -> commandDispatchService.dispatchRetriesDue(
+                    Instant.parse("2026-04-06T13:40:04Z"),
+                    10
+            ));
+            assertEquals(1, dispatchedRetry);
+
+            String resentStatus = jdbcTemplate.queryForObject(
+                    "SELECT command_status FROM tc_command WHERE command_id = ?",
+                    String.class,
+                    "cmd-it-retry-1"
+            );
+            assertEquals("SENT", resentStatus);
+
+            List<String> resentEvents = jdbcTemplate.queryForList(
+                    "SELECT event_status FROM command_event WHERE command_id = ? ORDER BY id",
+                    String.class,
+                    "cmd-it-retry-1"
+            );
+            assertEquals(
+                    List.of("RECEIVED", "PERSISTED", "DISPATCH_READY", "SENT", "ACKED", "RETRY_SCHEDULED", "SENT"),
+                    resentEvents
+            );
         }
     }
 

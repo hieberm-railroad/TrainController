@@ -6,6 +6,7 @@ import com.traincontroller.interceptor.persistence.CommandEventEntity;
 import com.traincontroller.interceptor.persistence.CommandEventRepository;
 import com.traincontroller.interceptor.persistence.TcCommandEntity;
 import com.traincontroller.interceptor.persistence.TcCommandRepository;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -70,6 +71,26 @@ class CommandDispatchServiceTest {
         verify(tcCommandRepository, times(1)).findByStatus(CommandStatus.DISPATCH_READY, 5);
         verify(tcCommandRepository, never()).updateStatusIfCurrent(any(), any(), any(), any());
         verify(commandEventRepository, never()).append(any());
+    }
+
+    @Test
+    void dispatchRetriesDueMarksSentAndAppendsEvent() {
+        CommandDispatchService service = new CommandDispatchService(tcCommandRepository, commandEventRepository);
+
+        Instant now = Instant.parse("2026-04-06T15:00:00Z");
+        TcCommandEntity retry = command("cmd-r-1", "intent-r-1");
+
+        when(tcCommandRepository.findRetryScheduledDue(now, 10)).thenReturn(List.of(retry));
+        when(tcCommandRepository.updateStatusIfCurrent("cmd-r-1", CommandStatus.RETRY_SCHEDULED, CommandStatus.SENT, null))
+                .thenReturn(1);
+
+        int dispatched = service.dispatchRetriesDue(now, 10);
+
+        assertEquals(1, dispatched);
+        verify(tcCommandRepository, times(1)).findRetryScheduledDue(now, 10);
+        verify(tcCommandRepository, times(1))
+                .updateStatusIfCurrent("cmd-r-1", CommandStatus.RETRY_SCHEDULED, CommandStatus.SENT, null);
+        verify(commandEventRepository, times(1)).append(any(CommandEventEntity.class));
     }
 
     private static TcCommandEntity command(String commandId, String intentId) {
