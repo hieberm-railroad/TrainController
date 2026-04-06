@@ -10,8 +10,10 @@ import com.traincontroller.interceptor.persistence.jdbc.JdbcIntentRepository;
 import com.traincontroller.interceptor.persistence.jdbc.JdbcTcCommandRepository;
 import com.traincontroller.interceptor.service.AckIngestionService;
 import com.traincontroller.interceptor.service.CommandDispatchService;
+import com.traincontroller.interceptor.service.CommandTransportService;
 import com.traincontroller.interceptor.service.CommandVerificationService;
 import com.traincontroller.interceptor.service.IntentService;
+import com.traincontroller.interceptor.transport.TransportSendResult;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
@@ -45,6 +47,7 @@ class IntentLifecyclePersistenceTest {
         private CommandDispatchService commandDispatchService;
         private AckIngestionService ackIngestionService;
         private CommandVerificationService commandVerificationService;
+        private CommandTransportService commandTransportService;
 
         @AfterEach
         void cleanupState() {
@@ -54,6 +57,7 @@ class IntentLifecyclePersistenceTest {
                 this.commandDispatchService = null;
                 this.ackIngestionService = null;
                 this.commandVerificationService = null;
+                this.commandTransportService = null;
         }
 
     @BeforeEach
@@ -115,6 +119,14 @@ class IntentLifecyclePersistenceTest {
                     new JdbcTcCommandRepository(namedTemplate),
                     new JdbcDeviceStateRepository(namedTemplate),
                     new JdbcCommandEventRepository(namedTemplate),
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+            );
+            this.commandTransportService = new CommandTransportService(
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new com.traincontroller.interceptor.persistence.jdbc.JdbcCommandAttemptRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate),
+                    this.ackIngestionService,
+                    command -> TransportSendResult.noAck(),
                     new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
             );
 
@@ -179,6 +191,16 @@ class IntentLifecyclePersistenceTest {
                     "cmd-it-1"
             );
             assertEquals("SENT", sentStatus);
+
+            Integer transportSent = tx.execute(statusTx -> commandTransportService.sendPending(10));
+            assertEquals(1, transportSent);
+
+            Integer attemptCount = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM command_attempt WHERE command_id = ?",
+                    Integer.class,
+                    "cmd-it-1"
+            );
+            assertEquals(1, attemptCount);
 
             List<String> sentLifecycleEvents = jdbcTemplate.queryForList(
                     "SELECT event_status FROM command_event WHERE command_id = ? ORDER BY id",
