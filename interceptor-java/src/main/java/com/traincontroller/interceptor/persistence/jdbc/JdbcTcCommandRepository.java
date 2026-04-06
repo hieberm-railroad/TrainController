@@ -66,6 +66,17 @@ public class JdbcTcCommandRepository implements TcCommandRepository {
               AND command_status = :expectedStatus
             """;
 
+        private static final String UPDATE_RETRY_STATE_IF_CURRENT_SQL = """
+                        UPDATE tc_command
+                        SET command_status = :newStatus,
+                                retry_count = :retryCount,
+                                next_attempt_at = :nextAttemptAt,
+                                failure_reason = :failureReason,
+                                updated_at = CURRENT_TIMESTAMP
+                        WHERE command_id = :commandId
+                            AND command_status = :expectedStatus
+                        """;
+
     private static final String SELECT_BY_COMMAND_ID_SQL = """
             SELECT
                 command_id,
@@ -158,6 +169,27 @@ public class JdbcTcCommandRepository implements TcCommandRepository {
                         .addValue("failureReason", failureReason)
         );
     }
+
+                    @Override
+                    public int updateRetryStateIfCurrent(
+                        String commandId,
+                        CommandStatus expectedStatus,
+                        CommandStatus newStatus,
+                        int retryCount,
+                        Instant nextAttemptAt,
+                        String failureReason
+                    ) {
+                    return jdbcTemplate.update(
+                        UPDATE_RETRY_STATE_IF_CURRENT_SQL,
+                        new MapSqlParameterSource()
+                            .addValue("commandId", commandId)
+                            .addValue("expectedStatus", expectedStatus.name())
+                            .addValue("newStatus", newStatus.name())
+                            .addValue("retryCount", retryCount)
+                            .addValue("nextAttemptAt", asTimestamp(nextAttemptAt))
+                            .addValue("failureReason", failureReason)
+                    );
+                    }
 
     private static TcCommandEntity mapRow(ResultSet rs) throws SQLException {
         return new TcCommandEntity(

@@ -1,6 +1,7 @@
 package com.traincontroller.interceptor.persistence;
 
 import com.traincontroller.interceptor.model.CommandStatus;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,4 +20,13 @@ public interface TcCommandRepository {
             CommandStatus newStatus,
             String failureReason
     );
+
+        int updateRetryStateIfCurrent(
+            String commandId,
+            CommandStatus expectedStatus,
+            CommandStatus newStatus,
+            int retryCount,
+            Instant nextAttemptAt,
+            String failureReason
+        );
 }

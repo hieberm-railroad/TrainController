@@ -10,6 +10,7 @@ import com.traincontroller.interceptor.persistence.jdbc.JdbcIntentRepository;
 import com.traincontroller.interceptor.persistence.jdbc.JdbcTcCommandRepository;
 import com.traincontroller.interceptor.service.AckIngestionService;
 import com.traincontroller.interceptor.service.CommandDispatchService;
+import com.traincontroller.interceptor.service.CommandVerificationService;
 import com.traincontroller.interceptor.service.IntentService;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -43,6 +44,7 @@ class IntentLifecyclePersistenceTest {
     private IntentService intentService;
         private CommandDispatchService commandDispatchService;
         private AckIngestionService ackIngestionService;
+        private CommandVerificationService commandVerificationService;
 
         @AfterEach
         void cleanupState() {
@@ -51,6 +53,7 @@ class IntentLifecyclePersistenceTest {
                 this.intentService = null;
                 this.commandDispatchService = null;
                 this.ackIngestionService = null;
+                this.commandVerificationService = null;
         }
 
     @BeforeEach
@@ -107,6 +110,12 @@ class IntentLifecyclePersistenceTest {
             this.ackIngestionService = new AckIngestionService(
                     new JdbcTcCommandRepository(namedTemplate),
                     new JdbcCommandEventRepository(namedTemplate)
+            );
+            this.commandVerificationService = new CommandVerificationService(
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcDeviceStateRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate),
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
             );
 
             applyMigrations();
@@ -194,6 +203,27 @@ class IntentLifecyclePersistenceTest {
                     "cmd-it-1"
             );
             assertEquals(List.of("RECEIVED", "PERSISTED", "DISPATCH_READY", "SENT", "ACKED"), ackedLifecycleEvents);
+
+            Boolean verified = tx.execute(statusTx -> commandVerificationService.reconcileAcked(
+                    "cmd-it-1",
+                    "OPEN",
+                    Instant.parse("2026-04-06T13:00:02Z")
+            ));
+            assertEquals(true, verified);
+
+            String verifiedStatus = jdbcTemplate.queryForObject(
+                    "SELECT command_status FROM tc_command WHERE command_id = ?",
+                    String.class,
+                    "cmd-it-1"
+            );
+            assertEquals("VERIFIED", verifiedStatus);
+
+            List<String> verifiedLifecycleEvents = jdbcTemplate.queryForList(
+                    "SELECT event_status FROM command_event WHERE command_id = ? ORDER BY id",
+                    String.class,
+                    "cmd-it-1"
+            );
+            assertEquals(List.of("RECEIVED", "PERSISTED", "DISPATCH_READY", "SENT", "ACKED", "VERIFIED"), verifiedLifecycleEvents);
         }
     }
 
@@ -324,6 +354,98 @@ class IntentLifecyclePersistenceTest {
                     "cmd-it-nosent-1"
             );
             assertEquals(List.of("RECEIVED", "PERSISTED", "DISPATCH_READY"), lifecycleEvents);
+        }
+    }
+
+    @Test
+    void verifyMismatchSchedulesRetryInPersistenceFlow() {
+        Assumptions.assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
+                "Docker is required for Testcontainers integration test");
+
+        try (MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.4.0")
+                .withDatabaseName("train_controller")
+                .withUsername("train")
+                .withPassword("train")) {
+            mysql.start();
+
+            DriverManagerDataSource ds = new DriverManagerDataSource();
+            ds.setDriverClassName("com.mysql.cj.jdbc.Driver");
+            ds.setUrl(mysql.getJdbcUrl());
+            ds.setUsername(mysql.getUsername());
+            ds.setPassword(mysql.getPassword());
+
+            this.dataSource = ds;
+            this.jdbcTemplate = new JdbcTemplate(ds);
+
+            NamedParameterJdbcTemplate namedTemplate = new NamedParameterJdbcTemplate(ds);
+            this.intentService = new IntentService(
+                    new JdbcIntentRepository(namedTemplate),
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate),
+                    new JdbcDeviceStateRepository(namedTemplate),
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+            );
+            this.commandDispatchService = new CommandDispatchService(
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate)
+            );
+            this.ackIngestionService = new AckIngestionService(
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate)
+            );
+            this.commandVerificationService = new CommandVerificationService(
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcDeviceStateRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate),
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+            );
+
+            applyMigrations();
+            resetTables();
+
+            TurnoutIntent intent = new TurnoutIntent(
+                    "cmd-it-retry-1",
+                    "corr-it-retry-1",
+                    "turnout-12",
+                    TurnoutState.OPEN,
+                    Instant.parse("2026-04-06T13:40:00Z")
+            );
+
+            TransactionTemplate tx = new TransactionTemplate(new DataSourceTransactionManager(ds));
+            tx.executeWithoutResult(status -> intentService.handle(intent));
+            tx.execute(status -> commandDispatchService.dispatchReady(10));
+            tx.execute(status -> ackIngestionService.ingestAck("cmd-it-retry-1", AckStatus.ACCEPTED));
+
+            Boolean verified = tx.execute(status -> commandVerificationService.reconcileAcked(
+                    "cmd-it-retry-1",
+                    "CLOSED",
+                    Instant.parse("2026-04-06T13:40:03Z")
+            ));
+            assertEquals(true, verified);
+
+            String status = jdbcTemplate.queryForObject(
+                    "SELECT command_status FROM tc_command WHERE command_id = ?",
+                    String.class,
+                    "cmd-it-retry-1"
+            );
+            assertEquals("RETRY_SCHEDULED", status);
+
+            Integer retryCount = jdbcTemplate.queryForObject(
+                    "SELECT retry_count FROM tc_command WHERE command_id = ?",
+                    Integer.class,
+                    "cmd-it-retry-1"
+            );
+            assertEquals(1, retryCount);
+
+            List<String> lifecycleEvents = jdbcTemplate.queryForList(
+                    "SELECT event_status FROM command_event WHERE command_id = ? ORDER BY id",
+                    String.class,
+                    "cmd-it-retry-1"
+            );
+            assertEquals(
+                    List.of("RECEIVED", "PERSISTED", "DISPATCH_READY", "SENT", "ACKED", "RETRY_SCHEDULED"),
+                    lifecycleEvents
+            );
         }
     }
 
