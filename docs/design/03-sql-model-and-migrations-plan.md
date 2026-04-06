@@ -9,7 +9,7 @@ Define a normalized SQL model for auditability, idempotency, and reconciliation.
 1. device
 2. device_state
 3. intent
-4. command
+4. tc_command
 5. command_attempt
 6. command_event
 
@@ -35,7 +35,7 @@ Indexes:
 - device_id (PK, FK -> device.id)
 - desired_state
 - actual_state
-- last_command_id (FK -> command.command_id)
+- last_command_id (FK -> tc_command.command_id)
 - state_quality (GOOD, DEGRADED, UNKNOWN)
 - last_verified_at
 - updated_at
@@ -62,7 +62,7 @@ Indexes:
 - uq_intent_correlation_device (correlation_id, device_id)
 - idx_intent_status_requested_at (status, requested_at)
 
-### command
+### tc_command
 
 - command_id (PK)
 - intent_id (FK -> intent.intent_id)
@@ -89,7 +89,7 @@ Indexes:
 ### command_attempt
 
 - id (PK bigint auto increment)
-- command_id (FK -> command.command_id)
+- command_id (FK -> tc_command.command_id)
 - attempt_no
 - sent_at
 - acked_at (nullable)
@@ -110,7 +110,7 @@ Indexes:
 ### command_event
 
 - id (PK bigint auto increment)
-- command_id (FK -> command.command_id)
+- command_id (FK -> tc_command.command_id)
 - intent_id (FK -> intent.intent_id)
 - event_type
 - event_status
@@ -124,15 +124,15 @@ Indexes:
 
 ## Why This Model
 
-- command is the lifecycle aggregate root.
+- tc_command is the lifecycle aggregate root.
 - command_attempt captures transport/reconciliation loop history.
 - command_event provides immutable audit trail.
 - device_state keeps a fast read model for current operations.
 
 ## Migration Plan
 
-- V1: create device, device_state, intent, command, command_attempt, command_event.
-- V2: add constraints and indexes based on observed query patterns.
+- V1: legacy bootstrap tables (`turnout_state`, `command_history`).
+- V2: normalized command model (`device`, `device_state`, `intent`, `tc_command`, `command_attempt`, `command_event`) with baseline constraints and indexes.
 - V3: optional partitioning/archival policy for command_event and command_attempt.
 
 ## Compatibility With Existing Schema
