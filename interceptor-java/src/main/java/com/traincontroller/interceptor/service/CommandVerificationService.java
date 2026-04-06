@@ -1,6 +1,7 @@
 package com.traincontroller.interceptor.service;
 
 import com.traincontroller.interceptor.config.InterceptorProperties;
+import com.traincontroller.interceptor.metrics.InterceptorTelemetry;
 import com.traincontroller.interceptor.model.CommandStatus;
 import com.traincontroller.interceptor.model.StateQuality;
 import com.traincontroller.interceptor.persistence.CommandEventEntity;
@@ -10,6 +11,7 @@ import com.traincontroller.interceptor.persistence.DeviceStateRepository;
 import com.traincontroller.interceptor.persistence.TcCommandEntity;
 import com.traincontroller.interceptor.persistence.TcCommandRepository;
 import com.traincontroller.interceptor.transport.TurnoutStateReadbackAdapter;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -30,19 +32,22 @@ public class CommandVerificationService {
     private final CommandEventRepository commandEventRepository;
     private final InterceptorProperties interceptorProperties;
     private final TurnoutStateReadbackAdapter turnoutStateReadbackAdapter;
+    private final InterceptorTelemetry interceptorTelemetry;
 
     public CommandVerificationService(
             TcCommandRepository tcCommandRepository,
             DeviceStateRepository deviceStateRepository,
             CommandEventRepository commandEventRepository,
             InterceptorProperties interceptorProperties,
-            TurnoutStateReadbackAdapter turnoutStateReadbackAdapter
+            TurnoutStateReadbackAdapter turnoutStateReadbackAdapter,
+            InterceptorTelemetry interceptorTelemetry
     ) {
         this.tcCommandRepository = tcCommandRepository;
         this.deviceStateRepository = deviceStateRepository;
         this.commandEventRepository = commandEventRepository;
         this.interceptorProperties = interceptorProperties;
         this.turnoutStateReadbackAdapter = turnoutStateReadbackAdapter;
+        this.interceptorTelemetry = interceptorTelemetry;
     }
 
     @Transactional
@@ -67,6 +72,7 @@ public class CommandVerificationService {
     public boolean reconcileAcked(String commandId, String actualState, Instant observedAt) {
         Optional<TcCommandEntity> command = tcCommandRepository.findByCommandId(commandId);
         if (command.isEmpty()) {
+            interceptorTelemetry.recordVerificationOutcome("ignored_unknown");
             log.info("Ignoring verify for unknown commandId={}", commandId);
             return false;
         }
@@ -78,6 +84,7 @@ public class CommandVerificationService {
                 null
         );
         if (movedToVerifyPending != 1) {
+            interceptorTelemetry.recordVerificationOutcome("ignored_non_acked");
             log.info("Ignoring verify for non-ACKED commandId={}", commandId);
             return false;
         }
@@ -116,6 +123,8 @@ public class CommandVerificationService {
                 CommandStatus.VERIFIED.name(),
                 "{\"actualState\":\"" + actualState + "\"}"
         ));
+        interceptorTelemetry.recordVerificationOutcome("verified");
+        recordLifecycleLatency(command.commandId(), "verified", observedAt);
         return true;
     }
 
@@ -165,6 +174,20 @@ public class CommandVerificationService {
                 finalStatus.name(),
                 "{\"actualState\":\"" + actualState + "\"}"
         ));
+        String outcome = finalStatus == CommandStatus.FAILED ? "failed" : "retry_scheduled";
+        interceptorTelemetry.recordVerificationOutcome(outcome);
+        if (finalStatus == CommandStatus.FAILED) {
+            recordLifecycleLatency(command.commandId(), "failed", observedAt);
+        }
         return true;
+    }
+
+    private void recordLifecycleLatency(String commandId, String outcome, Instant observedAt) {
+        tcCommandRepository.findCreatedAtByCommandId(commandId)
+                .filter(createdAt -> !observedAt.isBefore(createdAt))
+                .ifPresent(createdAt -> interceptorTelemetry.recordCommandLifecycleLatency(
+                        outcome,
+                        Duration.between(createdAt, observedAt)
+                ));
     }
 }

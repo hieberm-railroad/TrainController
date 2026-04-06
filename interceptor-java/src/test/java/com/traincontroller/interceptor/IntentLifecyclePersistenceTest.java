@@ -1,6 +1,7 @@
 package com.traincontroller.interceptor;
 
 import com.traincontroller.interceptor.config.InterceptorProperties;
+import com.traincontroller.interceptor.metrics.InterceptorTelemetry;
 import com.traincontroller.interceptor.model.AckStatus;
 import com.traincontroller.interceptor.model.TurnoutIntent;
 import com.traincontroller.interceptor.model.TurnoutState;
@@ -34,6 +35,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.junit.jupiter.api.Assumptions;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.MySQLContainer;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -120,7 +122,8 @@ class IntentLifecyclePersistenceTest {
                     new JdbcDeviceStateRepository(namedTemplate),
                     new JdbcCommandEventRepository(namedTemplate),
                     new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
-                    command -> java.util.Optional.empty()
+                    command -> java.util.Optional.empty(),
+                    new InterceptorTelemetry(new SimpleMeterRegistry())
             );
             this.commandTransportService = new CommandTransportService(
                     new JdbcTcCommandRepository(namedTemplate),
@@ -128,7 +131,8 @@ class IntentLifecyclePersistenceTest {
                     new JdbcCommandEventRepository(namedTemplate),
                     this.ackIngestionService,
                     command -> TransportSendResult.noAck(),
-                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                    new InterceptorTelemetry(new SimpleMeterRegistry())
             );
 
             applyMigrations(ds);
@@ -424,7 +428,8 @@ class IntentLifecyclePersistenceTest {
                     new JdbcDeviceStateRepository(namedTemplate),
                     new JdbcCommandEventRepository(namedTemplate),
                     new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
-                    command -> java.util.Optional.empty()
+                    command -> java.util.Optional.empty(),
+                    new InterceptorTelemetry(new SimpleMeterRegistry())
             );
 
             applyMigrations(ds);

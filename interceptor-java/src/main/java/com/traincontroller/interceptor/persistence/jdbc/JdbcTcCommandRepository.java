@@ -119,6 +119,12 @@ public class JdbcTcCommandRepository implements TcCommandRepository {
             WHERE command_id = :commandId
             """;
 
+    private static final String SELECT_CREATED_AT_SQL = """
+            SELECT created_at
+            FROM tc_command
+            WHERE command_id = :commandId
+            """;
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public JdbcTcCommandRepository(NamedParameterJdbcTemplate jdbcTemplate) {
@@ -185,6 +191,19 @@ public class JdbcTcCommandRepository implements TcCommandRepository {
                 (rs, rowNum) -> mapRow(rs)
         );
         return results.stream().findFirst();
+    }
+
+    @Override
+    public Optional<Instant> findCreatedAtByCommandId(String commandId) {
+        List<Timestamp> results = jdbcTemplate.query(
+                SELECT_CREATED_AT_SQL,
+                new MapSqlParameterSource().addValue("commandId", commandId),
+                (rs, rowNum) -> rs.getTimestamp("created_at")
+        );
+        if (results.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(toInstant(results.getFirst()));
     }
 
     @Override

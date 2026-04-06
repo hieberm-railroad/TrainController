@@ -26,6 +26,19 @@ mvn -q test
 mvn -q package
 ```
 
+## Telemetry Metrics
+
+The interceptor emits Micrometer metrics for transport and verification flow:
+
+- interceptor.transport.send.total (tag: outcome=ack|no_ack|transport_error)
+- interceptor.transport.send.duration (tag: outcome=ack|no_ack|transport_error)
+- interceptor.transport.retry_scheduled.total
+- interceptor.transport.failed.total
+- interceptor.readback.total (tag: outcome=ok|invalid_frame|io_error)
+- interceptor.readback.duration (tag: outcome=ok|invalid_frame|io_error)
+- interceptor.verification.total (tag: outcome=verified|retry_scheduled|failed|ignored_unknown|ignored_non_acked)
+- interceptor.command.lifecycle.duration (tag: outcome=verified|failed)
+
 ## Run
 
 ```bash

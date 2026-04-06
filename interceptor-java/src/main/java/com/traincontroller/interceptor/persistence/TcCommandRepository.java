@@ -16,6 +16,8 @@ public interface TcCommandRepository {
 
     Optional<TcCommandEntity> findByCommandId(String commandId);
 
+    Optional<Instant> findCreatedAtByCommandId(String commandId);
+
     int updateStatusIfCurrent(
             String commandId,
             CommandStatus expectedStatus,

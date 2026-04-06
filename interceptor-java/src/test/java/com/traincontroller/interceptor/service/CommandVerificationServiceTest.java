@@ -1,6 +1,7 @@
 package com.traincontroller.interceptor.service;
 
 import com.traincontroller.interceptor.config.InterceptorProperties;
+import com.traincontroller.interceptor.metrics.InterceptorTelemetry;
 import com.traincontroller.interceptor.model.CommandStatus;
 import com.traincontroller.interceptor.model.OperationType;
 import com.traincontroller.interceptor.model.StateQuality;
@@ -45,6 +46,9 @@ class CommandVerificationServiceTest {
         @Mock
         private TurnoutStateReadbackAdapter turnoutStateReadbackAdapter;
 
+        @Mock
+        private InterceptorTelemetry interceptorTelemetry;
+
     @Test
     void reconcileAckedMatchingStateTransitionsToVerified() {
         CommandVerificationService service = new CommandVerificationService(
@@ -52,7 +56,8 @@ class CommandVerificationServiceTest {
                 deviceStateRepository,
                 commandEventRepository,
                 new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
-                turnoutStateReadbackAdapter
+                turnoutStateReadbackAdapter,
+                interceptorTelemetry
         );
 
         TcCommandEntity command = command("cmd-v-1", "intent-v-1", "OPEN", 0, 5, CommandStatus.ACKED);
@@ -83,7 +88,8 @@ class CommandVerificationServiceTest {
                 deviceStateRepository,
                 commandEventRepository,
                 new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
-                turnoutStateReadbackAdapter
+                turnoutStateReadbackAdapter,
+                interceptorTelemetry
         );
 
         TcCommandEntity command = command("cmd-v-2", "intent-v-2", "OPEN", 0, 5, CommandStatus.ACKED);
@@ -120,7 +126,8 @@ class CommandVerificationServiceTest {
                 deviceStateRepository,
                 commandEventRepository,
                 new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
-                turnoutStateReadbackAdapter
+                turnoutStateReadbackAdapter,
+                interceptorTelemetry
         );
 
         TcCommandEntity command = command("cmd-v-3", "intent-v-3", "OPEN", 5, 5, CommandStatus.ACKED);
@@ -148,7 +155,8 @@ class CommandVerificationServiceTest {
                 deviceStateRepository,
                 commandEventRepository,
                 new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
-                turnoutStateReadbackAdapter
+                turnoutStateReadbackAdapter,
+                interceptorTelemetry
         );
 
         when(tcCommandRepository.findByCommandId("missing")).thenReturn(Optional.empty());
@@ -170,7 +178,8 @@ class CommandVerificationServiceTest {
                 deviceStateRepository,
                 commandEventRepository,
                 new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
-                turnoutStateReadbackAdapter
+                turnoutStateReadbackAdapter,
+                interceptorTelemetry
         );
 
         TcCommandEntity cmd1 = command("cmd-v-5", "intent-v-5", "OPEN", 0, 5, CommandStatus.ACKED);

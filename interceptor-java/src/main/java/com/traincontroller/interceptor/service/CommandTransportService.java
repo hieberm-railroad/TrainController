@@ -1,6 +1,7 @@
 package com.traincontroller.interceptor.service;
 
 import com.traincontroller.interceptor.config.InterceptorProperties;
+import com.traincontroller.interceptor.metrics.InterceptorTelemetry;
 import com.traincontroller.interceptor.model.CommandStatus;
 import com.traincontroller.interceptor.persistence.CommandAttemptRepository;
 import com.traincontroller.interceptor.persistence.CommandEventEntity;
@@ -9,6 +10,7 @@ import com.traincontroller.interceptor.persistence.TcCommandEntity;
 import com.traincontroller.interceptor.persistence.TcCommandRepository;
 import com.traincontroller.interceptor.transport.CommandTransportAdapter;
 import com.traincontroller.interceptor.transport.TransportSendResult;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import org.slf4j.Logger;
@@ -29,6 +31,7 @@ public class CommandTransportService {
     private final AckIngestionService ackIngestionService;
     private final CommandTransportAdapter commandTransportAdapter;
     private final InterceptorProperties interceptorProperties;
+    private final InterceptorTelemetry interceptorTelemetry;
 
     public CommandTransportService(
             TcCommandRepository tcCommandRepository,
@@ -36,7 +39,8 @@ public class CommandTransportService {
             CommandEventRepository commandEventRepository,
             AckIngestionService ackIngestionService,
             CommandTransportAdapter commandTransportAdapter,
-            InterceptorProperties interceptorProperties
+            InterceptorProperties interceptorProperties,
+            InterceptorTelemetry interceptorTelemetry
     ) {
         this.tcCommandRepository = tcCommandRepository;
         this.commandAttemptRepository = commandAttemptRepository;
@@ -44,6 +48,7 @@ public class CommandTransportService {
         this.ackIngestionService = ackIngestionService;
         this.commandTransportAdapter = commandTransportAdapter;
         this.interceptorProperties = interceptorProperties;
+        this.interceptorTelemetry = interceptorTelemetry;
     }
 
     @Transactional
@@ -62,16 +67,22 @@ public class CommandTransportService {
                 continue;
             }
 
+            Instant sendStartedAt = Instant.now();
             TransportSendResult result = commandTransportAdapter.send(command);
+            Duration sendDuration = Duration.between(sendStartedAt, Instant.now());
             if (result.hasTransportError()) {
+                interceptorTelemetry.recordTransportResult("transport_error", sendDuration);
                 sent += handleTransportError(command, attemptNo, now, result.transportError());
                 continue;
             }
 
             sent++;
             if (result.hasAck()) {
+                interceptorTelemetry.recordTransportResult("ack", sendDuration);
                 commandAttemptRepository.markAck(command.commandId(), attemptNo, result.ackStatus(), now);
                 ackIngestionService.ingestAck(command.commandId(), result.ackStatus());
+            } else {
+                interceptorTelemetry.recordTransportResult("no_ack", sendDuration);
             }
         }
         return sent;
@@ -90,6 +101,7 @@ public class CommandTransportService {
                     "TRANSPORT_ERROR"
             );
             if (failed == 1) {
+            interceptorTelemetry.recordTransportFailed();
                 commandEventRepository.append(new CommandEventEntity(
                         command.commandId(),
                         command.intentId(),
@@ -110,6 +122,7 @@ public class CommandTransportService {
                 "TRANSPORT_ERROR"
         );
         if (scheduled == 1) {
+            interceptorTelemetry.recordTransportRetryScheduled();
             commandEventRepository.append(new CommandEventEntity(
                     command.commandId(),
                     command.intentId(),

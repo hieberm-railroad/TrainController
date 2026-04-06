@@ -1,6 +1,7 @@
 package com.traincontroller.interceptor.transport;
 
 import com.traincontroller.interceptor.model.CommandStatus;
+import com.traincontroller.interceptor.metrics.InterceptorTelemetry;
 import com.traincontroller.interceptor.model.OperationType;
 import com.traincontroller.interceptor.persistence.TcCommandEntity;
 import java.io.IOException;
@@ -22,9 +23,15 @@ class SerialTurnoutStateReadbackAdapterTest {
     @Mock
     private SerialExchangeClient serialExchangeClient;
 
+    @Mock
+    private InterceptorTelemetry interceptorTelemetry;
+
     @Test
     void readActualStateReturnsParsedState() throws Exception {
-        SerialTurnoutStateReadbackAdapter adapter = new SerialTurnoutStateReadbackAdapter(serialExchangeClient);
+        SerialTurnoutStateReadbackAdapter adapter = new SerialTurnoutStateReadbackAdapter(
+            serialExchangeClient,
+            interceptorTelemetry
+        );
         when(serialExchangeClient.exchange(any(), anyInt())).thenReturn("STATE|OPEN\n");
 
         Optional<String> actualState = adapter.readActualState(command("cmd-r-1"));
@@ -35,7 +42,10 @@ class SerialTurnoutStateReadbackAdapterTest {
 
     @Test
     void readActualStateReturnsEmptyOnIoError() throws Exception {
-        SerialTurnoutStateReadbackAdapter adapter = new SerialTurnoutStateReadbackAdapter(serialExchangeClient);
+        SerialTurnoutStateReadbackAdapter adapter = new SerialTurnoutStateReadbackAdapter(
+            serialExchangeClient,
+            interceptorTelemetry
+        );
         when(serialExchangeClient.exchange(any(), anyInt())).thenThrow(new IOException("read timeout"));
 
         Optional<String> actualState = adapter.readActualState(command("cmd-r-2"));

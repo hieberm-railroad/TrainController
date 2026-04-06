@@ -1,6 +1,7 @@
 package com.traincontroller.interceptor.service;
 
 import com.traincontroller.interceptor.config.InterceptorProperties;
+import com.traincontroller.interceptor.metrics.InterceptorTelemetry;
 import com.traincontroller.interceptor.model.AckStatus;
 import com.traincontroller.interceptor.model.CommandStatus;
 import com.traincontroller.interceptor.model.OperationType;
@@ -43,6 +44,9 @@ class CommandTransportServiceTest {
     @Mock
     private CommandTransportAdapter commandTransportAdapter;
 
+    @Mock
+    private InterceptorTelemetry interceptorTelemetry;
+
     @Test
     void sendPendingRecordsAttemptAndForwardsAck() {
         CommandTransportService service = new CommandTransportService(
@@ -51,7 +55,8 @@ class CommandTransportServiceTest {
                 commandEventRepository,
                 ackIngestionService,
                 commandTransportAdapter,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                interceptorTelemetry
         );
 
         TcCommandEntity command = command("cmd-t-1", "intent-t-1", 0, 5);
@@ -74,7 +79,8 @@ class CommandTransportServiceTest {
                 commandEventRepository,
                 ackIngestionService,
                 commandTransportAdapter,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                interceptorTelemetry
         );
 
         TcCommandEntity command = command("cmd-t-2", "intent-t-2", 0, 5);
