@@ -8,6 +8,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -65,6 +66,25 @@ public class JdbcTcCommandRepository implements TcCommandRepository {
               AND command_status = :expectedStatus
             """;
 
+    private static final String SELECT_BY_COMMAND_ID_SQL = """
+            SELECT
+                command_id,
+                intent_id,
+                correlation_id,
+                device_id,
+                node_id,
+                operation_type,
+                desired_state,
+                command_status,
+                retry_count,
+                max_retries,
+                settle_delay_ms,
+                next_attempt_at,
+                failure_reason
+            FROM tc_command
+            WHERE command_id = :commandId
+            """;
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public JdbcTcCommandRepository(NamedParameterJdbcTemplate jdbcTemplate) {
@@ -110,6 +130,16 @@ public class JdbcTcCommandRepository implements TcCommandRepository {
                         .addValue("limitRows", limit),
                 (rs, rowNum) -> mapRow(rs)
         );
+    }
+
+    @Override
+    public Optional<TcCommandEntity> findByCommandId(String commandId) {
+        List<TcCommandEntity> results = jdbcTemplate.query(
+                SELECT_BY_COMMAND_ID_SQL,
+                new MapSqlParameterSource().addValue("commandId", commandId),
+                (rs, rowNum) -> mapRow(rs)
+        );
+        return results.stream().findFirst();
     }
 
     @Override

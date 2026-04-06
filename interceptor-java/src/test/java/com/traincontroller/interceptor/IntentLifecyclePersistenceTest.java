@@ -1,12 +1,14 @@
 package com.traincontroller.interceptor;
 
 import com.traincontroller.interceptor.config.InterceptorProperties;
+import com.traincontroller.interceptor.model.AckStatus;
 import com.traincontroller.interceptor.model.TurnoutIntent;
 import com.traincontroller.interceptor.model.TurnoutState;
 import com.traincontroller.interceptor.persistence.jdbc.JdbcCommandEventRepository;
 import com.traincontroller.interceptor.persistence.jdbc.JdbcDeviceStateRepository;
 import com.traincontroller.interceptor.persistence.jdbc.JdbcIntentRepository;
 import com.traincontroller.interceptor.persistence.jdbc.JdbcTcCommandRepository;
+import com.traincontroller.interceptor.service.AckIngestionService;
 import com.traincontroller.interceptor.service.CommandDispatchService;
 import com.traincontroller.interceptor.service.IntentService;
 import java.nio.file.Path;
@@ -40,6 +42,7 @@ class IntentLifecyclePersistenceTest {
     private JdbcTemplate jdbcTemplate;
     private IntentService intentService;
         private CommandDispatchService commandDispatchService;
+        private AckIngestionService ackIngestionService;
 
         @AfterEach
         void cleanupState() {
@@ -47,6 +50,7 @@ class IntentLifecyclePersistenceTest {
                 this.jdbcTemplate = null;
                 this.intentService = null;
                 this.commandDispatchService = null;
+                this.ackIngestionService = null;
         }
 
     @BeforeEach
@@ -97,6 +101,10 @@ class IntentLifecyclePersistenceTest {
                     new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
             );
             this.commandDispatchService = new CommandDispatchService(
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate)
+            );
+            this.ackIngestionService = new AckIngestionService(
                     new JdbcTcCommandRepository(namedTemplate),
                     new JdbcCommandEventRepository(namedTemplate)
             );
@@ -169,6 +177,23 @@ class IntentLifecyclePersistenceTest {
                     "cmd-it-1"
             );
             assertEquals(List.of("RECEIVED", "PERSISTED", "DISPATCH_READY", "SENT"), sentLifecycleEvents);
+
+            Boolean ackProcessed = tx.execute(statusTx -> ackIngestionService.ingestAck("cmd-it-1", AckStatus.ACCEPTED));
+            assertEquals(true, ackProcessed);
+
+            String ackedStatus = jdbcTemplate.queryForObject(
+                    "SELECT command_status FROM tc_command WHERE command_id = ?",
+                    String.class,
+                    "cmd-it-1"
+            );
+            assertEquals("ACKED", ackedStatus);
+
+            List<String> ackedLifecycleEvents = jdbcTemplate.queryForList(
+                    "SELECT event_status FROM command_event WHERE command_id = ? ORDER BY id",
+                    String.class,
+                    "cmd-it-1"
+            );
+            assertEquals(List.of("RECEIVED", "PERSISTED", "DISPATCH_READY", "SENT", "ACKED"), ackedLifecycleEvents);
         }
     }
 
@@ -204,6 +229,10 @@ class IntentLifecyclePersistenceTest {
                                         new JdbcTcCommandRepository(namedTemplate),
                                         new JdbcCommandEventRepository(namedTemplate)
                         );
+                        this.ackIngestionService = new AckIngestionService(
+                                        new JdbcTcCommandRepository(namedTemplate),
+                                        new JdbcCommandEventRepository(namedTemplate)
+                        );
 
                         applyMigrations();
                         resetTables();
@@ -231,6 +260,72 @@ class IntentLifecyclePersistenceTest {
                         assertEquals(1, deviceStateCount);
                 }
         }
+
+    @Test
+    void ackForNonSentCommandIsIgnoredInPersistenceFlow() {
+        Assumptions.assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
+                "Docker is required for Testcontainers integration test");
+
+        try (MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.4.0")
+                .withDatabaseName("train_controller")
+                .withUsername("train")
+                .withPassword("train")) {
+            mysql.start();
+
+            DriverManagerDataSource ds = new DriverManagerDataSource();
+            ds.setDriverClassName("com.mysql.cj.jdbc.Driver");
+            ds.setUrl(mysql.getJdbcUrl());
+            ds.setUsername(mysql.getUsername());
+            ds.setPassword(mysql.getPassword());
+
+            this.dataSource = ds;
+            this.jdbcTemplate = new JdbcTemplate(ds);
+
+            NamedParameterJdbcTemplate namedTemplate = new NamedParameterJdbcTemplate(ds);
+            this.intentService = new IntentService(
+                    new JdbcIntentRepository(namedTemplate),
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate),
+                    new JdbcDeviceStateRepository(namedTemplate),
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+            );
+            this.ackIngestionService = new AckIngestionService(
+                    new JdbcTcCommandRepository(namedTemplate),
+                    new JdbcCommandEventRepository(namedTemplate)
+            );
+
+            applyMigrations();
+            resetTables();
+
+            TurnoutIntent intent = new TurnoutIntent(
+                    "cmd-it-nosent-1",
+                    "corr-it-nosent-1",
+                    "turnout-12",
+                    TurnoutState.OPEN,
+                    Instant.parse("2026-04-06T13:30:00Z")
+            );
+
+            TransactionTemplate tx = new TransactionTemplate(new DataSourceTransactionManager(ds));
+            tx.executeWithoutResult(status -> intentService.handle(intent));
+
+            Boolean ackProcessed = tx.execute(status -> ackIngestionService.ingestAck("cmd-it-nosent-1", AckStatus.ACCEPTED));
+            assertEquals(false, ackProcessed);
+
+            String status = jdbcTemplate.queryForObject(
+                    "SELECT command_status FROM tc_command WHERE command_id = ?",
+                    String.class,
+                    "cmd-it-nosent-1"
+            );
+            assertEquals("DISPATCH_READY", status);
+
+            List<String> lifecycleEvents = jdbcTemplate.queryForList(
+                    "SELECT event_status FROM command_event WHERE command_id = ? ORDER BY id",
+                    String.class,
+                    "cmd-it-nosent-1"
+            );
+            assertEquals(List.of("RECEIVED", "PERSISTED", "DISPATCH_READY"), lifecycleEvents);
+        }
+    }
 
     private void applyMigrations() {
         Path v1 = Path.of("..", "migrations", "V1__initial_schema.sql").toAbsolutePath().normalize();

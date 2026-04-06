@@ -2,6 +2,7 @@ package com.traincontroller.interceptor.persistence;
 
 import com.traincontroller.interceptor.model.CommandStatus;
 import java.util.List;
+import java.util.Optional;
 
 public interface TcCommandRepository {
     void insert(TcCommandEntity command);
@@ -9,6 +10,8 @@ public interface TcCommandRepository {
     int updateStatus(String commandId, CommandStatus status, String failureReason);
 
     List<TcCommandEntity> findByStatus(CommandStatus status, int limit);
+
+    Optional<TcCommandEntity> findByCommandId(String commandId);
 
     int updateStatusIfCurrent(
             String commandId,
