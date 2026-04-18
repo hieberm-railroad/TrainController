@@ -6,30 +6,30 @@ groups:
           sum(rate(interceptor_transport_send_total{outcome="transport_error"}[5m]))
             /
           clamp_min(sum(rate(interceptor_transport_send_total[5m])), 1)
-            > 0.10
+            > 0.03
         for: 10m
         labels:
           severity: warning
         annotations:
-          summary: "Transport error rate above 10%"
-          description: "Serial transport errors are consistently above expected threshold for 10 minutes."
+          summary: "Transport error rate above 3%"
+          description: "Serial transport errors are above healthy baseline for 10 minutes."
 
       - alert: InterceptorReadbackFailureRateHigh
         expr: |
           sum(rate(interceptor_readback_total{outcome=~"io_error|invalid_frame"}[5m]))
             /
           clamp_min(sum(rate(interceptor_readback_total[5m])), 1)
-            > 0.15
+            > 0.05
         for: 10m
         labels:
           severity: warning
         annotations:
-          summary: "Readback failure rate above 15%"
-          description: "Readback is returning IO errors or invalid frames at elevated levels."
+          summary: "Readback failure rate above 5%"
+          description: "Readback is returning IO errors or invalid frames above healthy baseline."
 
       - alert: InterceptorVerificationRetriesSpike
         expr: |
-          sum(rate(interceptor_verification_total{outcome="retry_scheduled"}[5m])) > 0.5
+          sum(rate(interceptor_verification_total{outcome="retry_scheduled"}[5m])) > 0.15
         for: 15m
         labels:
           severity: warning
@@ -37,15 +37,27 @@ groups:
           summary: "High verification retry volume"
           description: "Commands are frequently entering RETRY_SCHEDULED, indicating actuation or sensing drift."
 
+      - alert: InterceptorVerifiedRateLowUnderLoad
+        expr: |
+          sum(rate(interceptor_verification_total{outcome="verified"}[5m])) < 0.15
+            and
+          sum(rate(interceptor_transport_send_total[5m])) > 0.25
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Verified rate is low under active load"
+          description: "Transport send volume is present but VERIFIED outcomes are below expected soak baseline."
+
       - alert: InterceptorLifecycleLatencyP95High
         expr: |
           histogram_quantile(
             0.95,
             sum(rate(interceptor_command_lifecycle_duration_seconds_bucket[10m])) by (le)
-          ) > 5
+          ) > 4
         for: 15m
         labels:
           severity: warning
         annotations:
-          summary: "P95 lifecycle latency above 5s"
+          summary: "P95 lifecycle latency above 4s"
           description: "Command end-to-end lifecycle latency is above target."
