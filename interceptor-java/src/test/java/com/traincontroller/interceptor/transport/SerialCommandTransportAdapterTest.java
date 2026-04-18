@@ -26,7 +26,7 @@ class SerialCommandTransportAdapterTest {
     void sendMapsValidAckResponse() throws Exception {
         SerialCommandTransportAdapter adapter = new SerialCommandTransportAdapter(
                 serialExchangeClient,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null)
         );
 
         String payload = "v1|turnout-12|cmd-123|ACK|ACCEPTED";
@@ -45,7 +45,7 @@ class SerialCommandTransportAdapterTest {
     void sendReturnsTransportErrorOnInvalidAckFrame() throws Exception {
         SerialCommandTransportAdapter adapter = new SerialCommandTransportAdapter(
                 serialExchangeClient,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null)
         );
 
         when(serialExchangeClient.exchange(any(), anyInt())).thenReturn("bad-frame\n");
@@ -60,7 +60,7 @@ class SerialCommandTransportAdapterTest {
     void sendReturnsTransportErrorOnAckCommandMismatch() throws Exception {
         SerialCommandTransportAdapter adapter = new SerialCommandTransportAdapter(
                 serialExchangeClient,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null)
         );
 
         String payload = "v1|turnout-12|cmd-other|ACK|ACCEPTED";
@@ -78,7 +78,7 @@ class SerialCommandTransportAdapterTest {
     void sendReturnsTransportErrorOnAckNodeMismatch() throws Exception {
         SerialCommandTransportAdapter adapter = new SerialCommandTransportAdapter(
                 serialExchangeClient,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null)
         );
 
         String payload = "v1|turnout-99|cmd-123|ACK|ACCEPTED";
@@ -96,7 +96,7 @@ class SerialCommandTransportAdapterTest {
     void sendReturnsNoAckWhenNoResponse() throws Exception {
         SerialCommandTransportAdapter adapter = new SerialCommandTransportAdapter(
                 serialExchangeClient,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null)
         );
 
         when(serialExchangeClient.exchange(any(), anyInt())).thenReturn(null);

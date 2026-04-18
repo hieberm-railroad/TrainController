@@ -32,7 +32,10 @@ public class SerialTurnoutStateReadbackAdapter implements TurnoutStateReadbackAd
     public Optional<String> readActualState(TcCommandEntity command) {
         Instant readStartedAt = Instant.now();
         try {
-            String response = serialExchangeClient.exchange(SerialFrameCodec.encodeTurnoutStateQuery(), command.settleDelayMs());
+            String response = serialExchangeClient.exchange(
+                SerialFrameCodec.encodeTurnoutStateQuery(command.nodeId()),
+                command.settleDelayMs()
+            );
             Optional<String> decodedState = SerialFrameCodec.decodeStateFrame(response).map(SerialFrameCodec.StateFrame::actualState);
             interceptorTelemetry.recordReadbackResult(
                     decodedState.isPresent() ? "ok" : "invalid_frame",

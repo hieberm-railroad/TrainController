@@ -55,7 +55,7 @@ class IntentServiceTest {
                 tcCommandRepository,
                 commandEventRepository,
                 deviceStateRepository,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null)
         );
 
         TurnoutIntent intent = new TurnoutIntent(
@@ -126,7 +126,7 @@ class IntentServiceTest {
                 tcCommandRepository,
                 commandEventRepository,
                 deviceStateRepository,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null)
         );
 
         TurnoutIntent intent = new TurnoutIntent(

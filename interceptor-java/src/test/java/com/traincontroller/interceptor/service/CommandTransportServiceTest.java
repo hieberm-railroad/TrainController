@@ -55,7 +55,7 @@ class CommandTransportServiceTest {
                 commandEventRepository,
                 ackIngestionService,
                 commandTransportAdapter,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null),
                 interceptorTelemetry
         );
 
@@ -79,7 +79,7 @@ class CommandTransportServiceTest {
                 commandEventRepository,
                 ackIngestionService,
                 commandTransportAdapter,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null),
                 interceptorTelemetry
         );
 

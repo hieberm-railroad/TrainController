@@ -52,8 +52,8 @@ class SerialFrameCodecTest {
 
     @Test
     void encodesTurnoutStateQueryFrame() {
-        String frame = new String(SerialFrameCodec.encodeTurnoutStateQuery(), StandardCharsets.US_ASCII);
-        assertEquals("QSTATE\n", frame);
+        String frame = new String(SerialFrameCodec.encodeTurnoutStateQuery("node-1"), StandardCharsets.US_ASCII);
+        assertEquals("QSTATE|node-1\n", frame);
     }
 
     @Test

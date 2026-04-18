@@ -9,7 +9,16 @@ This directory contains message contracts and examples shared between Java inter
 
 `v1|<nodeId>|<commandId>|TURNOUT|<turnoutId>|<OPEN|CLOSED>|<checksumHex>\n`
 
+- Addressed state query frame:
+
+`QSTATE|<nodeId>\n`
+
+- State response frame:
+
+`STATE|<actualState>\n`
+
 ## Notes
 
 - Keep frame size under firmware parser limits.
 - Include command IDs for idempotency and stale-response rejection.
+- Nodes should ignore commands and queries addressed to other node IDs.

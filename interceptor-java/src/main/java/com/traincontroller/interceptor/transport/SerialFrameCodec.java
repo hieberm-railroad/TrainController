@@ -21,8 +21,8 @@ public final class SerialFrameCodec {
         return encodeTurnoutCommand(nodeId, intent.commandId(), intent.turnoutId(), intent.desiredState().name());
     }
 
-    public static byte[] encodeTurnoutStateQuery() {
-        return "QSTATE\n".getBytes(StandardCharsets.US_ASCII);
+    public static byte[] encodeTurnoutStateQuery(String nodeId) {
+        return String.format("QSTATE|%s\n", nodeId).getBytes(StandardCharsets.US_ASCII);
     }
 
     public static byte[] encodeTurnoutCommand(String nodeId, String commandId, String turnoutId, String desiredState) {

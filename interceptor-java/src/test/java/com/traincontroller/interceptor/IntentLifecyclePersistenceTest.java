@@ -107,7 +107,7 @@ class IntentLifecyclePersistenceTest {
                     new JdbcTcCommandRepository(namedTemplate),
                     new JdbcCommandEventRepository(namedTemplate),
                     new JdbcDeviceStateRepository(namedTemplate),
-                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null)
             );
             this.commandDispatchService = new CommandDispatchService(
                     new JdbcTcCommandRepository(namedTemplate),
@@ -121,7 +121,7 @@ class IntentLifecyclePersistenceTest {
                     new JdbcTcCommandRepository(namedTemplate),
                     new JdbcDeviceStateRepository(namedTemplate),
                     new JdbcCommandEventRepository(namedTemplate),
-                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null),
                     command -> java.util.Optional.empty(),
                     new InterceptorTelemetry(new SimpleMeterRegistry())
             );
@@ -131,7 +131,7 @@ class IntentLifecyclePersistenceTest {
                     new JdbcCommandEventRepository(namedTemplate),
                     this.ackIngestionService,
                     command -> TransportSendResult.noAck(),
-                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null),
                     new InterceptorTelemetry(new SimpleMeterRegistry())
             );
 
@@ -281,7 +281,7 @@ class IntentLifecyclePersistenceTest {
                                         new JdbcTcCommandRepository(namedTemplate),
                                         new JdbcCommandEventRepository(namedTemplate),
                                         new JdbcDeviceStateRepository(namedTemplate),
-                                        new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                                        new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null)
                         );
                         this.commandDispatchService = new CommandDispatchService(
                                         new JdbcTcCommandRepository(namedTemplate),
@@ -346,7 +346,7 @@ class IntentLifecyclePersistenceTest {
                     new JdbcTcCommandRepository(namedTemplate),
                     new JdbcCommandEventRepository(namedTemplate),
                     new JdbcDeviceStateRepository(namedTemplate),
-                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null)
             );
             this.ackIngestionService = new AckIngestionService(
                     new JdbcTcCommandRepository(namedTemplate),
@@ -413,7 +413,7 @@ class IntentLifecyclePersistenceTest {
                     new JdbcTcCommandRepository(namedTemplate),
                     new JdbcCommandEventRepository(namedTemplate),
                     new JdbcDeviceStateRepository(namedTemplate),
-                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null)
             );
             this.commandDispatchService = new CommandDispatchService(
                     new JdbcTcCommandRepository(namedTemplate),
@@ -427,7 +427,7 @@ class IntentLifecyclePersistenceTest {
                     new JdbcTcCommandRepository(namedTemplate),
                     new JdbcDeviceStateRepository(namedTemplate),
                     new JdbcCommandEventRepository(namedTemplate),
-                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null),
                     command -> java.util.Optional.empty(),
                     new InterceptorTelemetry(new SimpleMeterRegistry())
             );
@@ -531,7 +531,7 @@ class IntentLifecyclePersistenceTest {
                     new JdbcTcCommandRepository(namedTemplate),
                     new JdbcCommandEventRepository(namedTemplate),
                     new JdbcDeviceStateRepository(namedTemplate),
-                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null)
             );
             this.commandDispatchService = new CommandDispatchService(
                     new JdbcTcCommandRepository(namedTemplate),
@@ -545,7 +545,7 @@ class IntentLifecyclePersistenceTest {
                     new JdbcTcCommandRepository(namedTemplate),
                     new JdbcDeviceStateRepository(namedTemplate),
                     new JdbcCommandEventRepository(namedTemplate),
-                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null),
                     command -> java.util.Optional.of("OPEN"),
                     new InterceptorTelemetry(new SimpleMeterRegistry())
             );
@@ -615,7 +615,7 @@ class IntentLifecyclePersistenceTest {
                     new JdbcTcCommandRepository(namedTemplate),
                     new JdbcCommandEventRepository(namedTemplate),
                     new JdbcDeviceStateRepository(namedTemplate),
-                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200)
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null)
             );
             this.commandDispatchService = new CommandDispatchService(
                     new JdbcTcCommandRepository(namedTemplate),
@@ -629,7 +629,7 @@ class IntentLifecyclePersistenceTest {
                     new JdbcTcCommandRepository(namedTemplate),
                     new JdbcDeviceStateRepository(namedTemplate),
                     new JdbcCommandEventRepository(namedTemplate),
-                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                    new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null),
                     command -> java.util.Optional.of("CLOSED"),
                     new InterceptorTelemetry(new SimpleMeterRegistry())
             );

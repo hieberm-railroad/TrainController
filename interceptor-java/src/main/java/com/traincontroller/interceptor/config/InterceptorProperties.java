@@ -8,6 +8,13 @@ public record InterceptorProperties(
         int maxRetries,
         int retryBackoffMs,
         String serialPort,
-        int serialBaud
+        int serialBaud,
+        Mqtt mqtt
 ) {
+    public record Mqtt(
+            String brokerUri,
+            String clientId,
+            String inboundTopic
+    ) {
+    }
 }

@@ -55,7 +55,7 @@ class CommandVerificationServiceTest {
                 tcCommandRepository,
                 deviceStateRepository,
                 commandEventRepository,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null),
                 turnoutStateReadbackAdapter,
                 interceptorTelemetry
         );
@@ -87,7 +87,7 @@ class CommandVerificationServiceTest {
                 tcCommandRepository,
                 deviceStateRepository,
                 commandEventRepository,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null),
                 turnoutStateReadbackAdapter,
                 interceptorTelemetry
         );
@@ -125,7 +125,7 @@ class CommandVerificationServiceTest {
                 tcCommandRepository,
                 deviceStateRepository,
                 commandEventRepository,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null),
                 turnoutStateReadbackAdapter,
                 interceptorTelemetry
         );
@@ -154,7 +154,7 @@ class CommandVerificationServiceTest {
                 tcCommandRepository,
                 deviceStateRepository,
                 commandEventRepository,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null),
                 turnoutStateReadbackAdapter,
                 interceptorTelemetry
         );
@@ -177,7 +177,7 @@ class CommandVerificationServiceTest {
                 tcCommandRepository,
                 deviceStateRepository,
                 commandEventRepository,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200),
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null),
                 turnoutStateReadbackAdapter,
                 interceptorTelemetry
         );

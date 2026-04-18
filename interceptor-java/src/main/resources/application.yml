@@ -8,11 +8,11 @@ interceptor:
   settle-delay-ms: 750
   max-retries: 5
   retry-backoff-ms: 500
-  serial-port: /dev/ttyUSB0
+  serial-port: /dev/ttyUSB2
   serial-baud: 19200
   mqtt:
     broker-uri: tcp://localhost:1883
-    client-id: train-interceptor
+    client-id: train-interceptor-1
     inbound-topic: jmri/intent/turnout/+
 
 management:
