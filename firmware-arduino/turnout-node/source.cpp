@@ -128,14 +128,17 @@ void loop()
         {
             Serial.print("RS485 RX: ");
             Serial.println(line);
+            handleLine(line, false);
         }
-        handleLine(line, false);
     }
 
     if (Serial.available())
     {
         String line = Serial.readStringUntil('\n');
         line.trim();
-        handleLine(line, true);
+        if (line.length() > 0)
+        {
+            handleLine(line, true);
+        }
     }
 }

@@ -26,3 +26,17 @@ TrainController is a monorepo for model railroad control with JMRI as orchestrat
 2. Apply SQL migrations in `migrations/`.
 3. Run Java interceptor from `interceptor-java/`.
 4. Flash firmware from `firmware-arduino/`.
+
+## Quick End-to-End Smoke
+
+After dependencies, migrations, interceptor, and firmware are running, execute:
+
+```bash
+./tests/mqtt_e2e_smoke.sh
+```
+
+Expected outcome:
+
+- Script publishes an MQTT turnout intent.
+- Command reaches `VERIFIED` in `tc_command`.
+- `device_state` for `turnout1` matches desired and actual `OPEN` with quality `GOOD`.
