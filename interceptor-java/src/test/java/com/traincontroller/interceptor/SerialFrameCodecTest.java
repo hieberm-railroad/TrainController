@@ -9,6 +9,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SerialFrameCodecTest {
@@ -52,8 +53,8 @@ class SerialFrameCodecTest {
 
     @Test
     void encodesTurnoutStateQueryFrame() {
-        String frame = new String(SerialFrameCodec.encodeTurnoutStateQuery("node-1"), StandardCharsets.US_ASCII);
-        assertEquals("QSTATE|node-1\n", frame);
+        String frame = new String(SerialFrameCodec.encodeTurnoutStateQuery("node-1", "ITDXT001"), StandardCharsets.US_ASCII);
+        assertEquals("QSTATE|node-1|ITDXT001\n", frame);
     }
 
     @Test
@@ -61,6 +62,15 @@ class SerialFrameCodecTest {
         Optional<SerialFrameCodec.StateFrame> decoded = SerialFrameCodec.decodeStateFrame("STATE|OPEN\n");
         assertTrue(decoded.isPresent());
         assertEquals("OPEN", decoded.get().actualState());
+        assertNull(decoded.get().turnoutId());
+    }
+
+    @Test
+    void decodesAddressedStateFrame() {
+        Optional<SerialFrameCodec.StateFrame> decoded = SerialFrameCodec.decodeStateFrame("STATE|ITDXT001|CLOSED\n");
+        assertTrue(decoded.isPresent());
+        assertEquals("ITDXT001", decoded.get().turnoutId());
+        assertEquals("CLOSED", decoded.get().actualState());
     }
 
     @Test

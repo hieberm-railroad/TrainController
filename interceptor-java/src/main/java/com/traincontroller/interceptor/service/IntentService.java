@@ -76,7 +76,7 @@ public class IntentService {
                     intentId,
                     intent.correlationId(),
                     deviceId,
-                    deriveNodeId(intent),
+                    deriveNodeId(intent, interceptorProperties),
                     OperationType.TURNOUT_SET,
                     desiredState,
                     CommandStatus.RECEIVED,
@@ -120,7 +120,10 @@ public class IntentService {
         ));
     }
 
-    private static String deriveNodeId(TurnoutIntent intent) {
+    private static String deriveNodeId(TurnoutIntent intent, InterceptorProperties properties) {
+        if (properties.turnoutNodeId() != null && !properties.turnoutNodeId().isBlank()) {
+            return properties.turnoutNodeId();
+        }
         return intent.turnoutId();
     }
 }

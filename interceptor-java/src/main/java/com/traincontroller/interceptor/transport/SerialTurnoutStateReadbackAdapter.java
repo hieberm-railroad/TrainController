@@ -33,7 +33,7 @@ public class SerialTurnoutStateReadbackAdapter implements TurnoutStateReadbackAd
         Instant readStartedAt = Instant.now();
         try {
             String response = serialExchangeClient.exchange(
-                SerialFrameCodec.encodeTurnoutStateQuery(command.nodeId()),
+                SerialFrameCodec.encodeTurnoutStateQuery(command.nodeId(), command.deviceId()),
                 command.settleDelayMs()
             );
             Optional<String> decodedState = SerialFrameCodec.decodeStateFrame(response).map(SerialFrameCodec.StateFrame::actualState);

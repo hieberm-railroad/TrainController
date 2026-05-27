@@ -10,6 +10,7 @@ interceptor:
   retry-backoff-ms: 500
   serial-port: /dev/ttyUSB2
   serial-baud: 19200
+  turnout-node-id: turnout1
   mqtt:
     broker-uri: tcp://localhost:1883
     client-id: train-interceptor-1

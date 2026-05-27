@@ -9,6 +9,7 @@ public record InterceptorProperties(
         int retryBackoffMs,
         String serialPort,
         int serialBaud,
+        String turnoutNodeId,
         Mqtt mqtt
 ) {
     public record Mqtt(

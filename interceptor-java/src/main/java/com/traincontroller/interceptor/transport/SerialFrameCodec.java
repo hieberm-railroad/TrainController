@@ -11,7 +11,7 @@ public final class SerialFrameCodec {
     public record AckFrame(String nodeId, String commandId, AckStatus ackStatus) {
     }
 
-    public record StateFrame(String actualState) {
+    public record StateFrame(String turnoutId, String actualState) {
     }
 
     private SerialFrameCodec() {
@@ -21,8 +21,8 @@ public final class SerialFrameCodec {
         return encodeTurnoutCommand(nodeId, intent.commandId(), intent.turnoutId(), intent.desiredState().name());
     }
 
-    public static byte[] encodeTurnoutStateQuery(String nodeId) {
-        return String.format("QSTATE|%s\n", nodeId).getBytes(StandardCharsets.US_ASCII);
+    public static byte[] encodeTurnoutStateQuery(String nodeId, String turnoutId) {
+        return String.format("QSTATE|%s|%s\n", nodeId, turnoutId).getBytes(StandardCharsets.US_ASCII);
     }
 
     public static byte[] encodeTurnoutCommand(String nodeId, String commandId, String turnoutId, String desiredState) {
@@ -82,14 +82,15 @@ public final class SerialFrameCodec {
 
         String trimmed = frame.trim();
         String[] parts = trimmed.split("\\|");
-        if (parts.length != 2 || !"STATE".equals(parts[0])) {
+        if ((parts.length != 2 && parts.length != 3) || !"STATE".equals(parts[0])) {
             return Optional.empty();
         }
 
-        String actualState = parts[1].toUpperCase(Locale.ROOT);
+        String turnoutId = parts.length == 3 ? parts[1] : null;
+        String actualState = parts.length == 3 ? parts[2].toUpperCase(Locale.ROOT) : parts[1].toUpperCase(Locale.ROOT);
         if (!"OPEN".equals(actualState) && !"CLOSED".equals(actualState)) {
             return Optional.empty();
         }
-        return Optional.of(new StateFrame(actualState));
+        return Optional.of(new StateFrame(turnoutId, actualState));
     }
 }
