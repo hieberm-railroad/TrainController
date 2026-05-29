@@ -52,9 +52,9 @@ def main() -> int:
     args = parser.parse_args()
 
     frames = [
-        f"QSTATE|{args.turnout_node}",
-        f"v1|{args.turnout_node}|cmd-1|TURNOUT|x|OPEN",
-        f"v1|{args.turnout_node}|cmd-2|TURNOUT|x|CLOSED",
+        f"QSTATE|{args.turnout_node}|001",
+        f"v1|{args.turnout_node}|cmd-1|TURNOUT|001|OPEN",
+        f"v1|{args.turnout_node}|cmd-2|TURNOUT|001|CLOSED",
         f"QSTATE|{args.signal_node}",
         f"v1|{args.signal_node}|cmd-3|SIGNAL|x|GREEN",
         f"v1|{args.signal_node}|cmd-4|SIGNAL|x|RED",

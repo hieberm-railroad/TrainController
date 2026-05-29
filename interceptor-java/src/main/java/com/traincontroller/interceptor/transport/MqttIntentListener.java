@@ -7,6 +7,9 @@ import com.traincontroller.interceptor.model.TurnoutState;
 import com.traincontroller.interceptor.service.IntentService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import java.nio.charset.StandardCharsets;
+import java.util.Locale;
+import java.util.UUID;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttClient;
@@ -72,38 +75,82 @@ public class MqttIntentListener implements MqttCallback {
 
     @Override
     public void messageArrived(String topic, MqttMessage message) {
-        String payload = new String(message.getPayload());
+        String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
         log.debug("MQTT message received topic={} payload={}", topic, payload);
 
         try {
-            TurnoutIntentPayload dto = objectMapper.readValue(payload, TurnoutIntentPayload.class);
+            TurnoutIntent intent = payload.stripLeading().startsWith("{")
+                    ? parseJsonIntent(topic, payload)
+                    : parseNativeJmriIntent(topic, payload);
 
-            if (dto.commandId() == null || dto.turnoutId() == null || dto.desiredState() == null) {
-                log.warn("Ignoring MQTT message with missing required fields topic={}", topic);
+            if (intent == null) {
                 return;
             }
-
-            TurnoutState desiredState;
-            try {
-                desiredState = TurnoutState.valueOf(dto.desiredState().toUpperCase());
-            } catch (IllegalArgumentException e) {
-                log.warn("Ignoring unknown desiredState={} topic={}", dto.desiredState(), topic);
-                return;
-            }
-
-            TurnoutIntent intent = new TurnoutIntent(
-                    dto.commandId(),
-                    dto.correlationId() != null ? dto.correlationId() : dto.commandId(),
-                    dto.turnoutId(),
-                    desiredState,
-                    null
-            );
 
             intentService.handle(intent);
 
         } catch (Exception e) {
             log.error("Failed to process MQTT message topic={} error={}", topic, e.getMessage(), e);
         }
+    }
+
+    private TurnoutIntent parseJsonIntent(String topic, String payload) throws Exception {
+        TurnoutIntentPayload dto = objectMapper.readValue(payload, TurnoutIntentPayload.class);
+
+        if (dto.commandId() == null || dto.turnoutId() == null || dto.desiredState() == null) {
+            log.warn("Ignoring MQTT message with missing required fields topic={}", topic);
+            return null;
+        }
+
+        TurnoutState desiredState = parseDesiredState(dto.desiredState(), topic);
+        if (desiredState == null) {
+            return null;
+        }
+
+        return new TurnoutIntent(
+                dto.commandId(),
+                dto.correlationId() != null ? dto.correlationId() : dto.commandId(),
+                dto.turnoutId(),
+                desiredState,
+                null
+        );
+    }
+
+    private TurnoutIntent parseNativeJmriIntent(String topic, String payload) {
+        String turnoutId = extractTurnoutId(topic);
+        if (turnoutId == null) {
+            log.warn("Ignoring MQTT message with unexpected topic={} payload={}", topic, payload);
+            return null;
+        }
+
+        TurnoutState desiredState = parseDesiredState(payload, topic);
+        if (desiredState == null) {
+            return null;
+        }
+
+        String commandId = "jmri-" + UUID.randomUUID();
+        return new TurnoutIntent(commandId, commandId, turnoutId, desiredState, null);
+    }
+
+    private String extractTurnoutId(String topic) {
+        String prefix = interceptorProperties.mqtt().inboundTopic().replace("+", "");
+        if (!topic.startsWith(prefix) || topic.length() <= prefix.length()) {
+            return null;
+        }
+        return topic.substring(prefix.length());
+    }
+
+    private TurnoutState parseDesiredState(String rawValue, String topic) {
+        String normalized = rawValue == null ? "" : rawValue.trim().toUpperCase(Locale.ROOT);
+
+        return switch (normalized) {
+            case "OPEN", "THROWN" -> TurnoutState.OPEN;
+            case "CLOSED" -> TurnoutState.CLOSED;
+            default -> {
+                log.warn("Ignoring unknown desiredState={} topic={}", rawValue, topic);
+                yield null;
+            }
+        };
     }
 
     @Override
