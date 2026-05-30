@@ -40,7 +40,7 @@ class MqttIntentListenerTest {
         );
 
         listener.messageArrived(
-                "/trains/track/turnout/LT1",
+                "trains/track/turnout/LT1",
                 new MqttMessage("THROWN".getBytes())
         );
 
@@ -55,6 +55,64 @@ class MqttIntentListenerTest {
     }
 
     @Test
+    void messageArrivedNormalizesNativeJmriTopicTurnoutIdAlias() {
+        MqttIntentListener listener = new MqttIntentListener(
+                new InterceptorProperties(
+                        750,
+                        5,
+                        500,
+                        "/dev/ttyUSB0",
+                        19200,
+                        "turnout1",
+                        new InterceptorProperties.Mqtt("tcp://localhost:1883", "test-client", "trains/track/turnout/+")
+                ),
+                intentService,
+                new ObjectMapper()
+        );
+
+        listener.messageArrived(
+                "trains/track/turnout/turnout1",
+                new MqttMessage("THROWN".getBytes())
+        );
+
+        ArgumentCaptor<TurnoutIntent> intentCaptor = ArgumentCaptor.forClass(TurnoutIntent.class);
+        verify(intentService).handle(intentCaptor.capture());
+
+        TurnoutIntent intent = intentCaptor.getValue();
+        assertEquals("001", intent.turnoutId());
+        assertEquals(TurnoutState.OPEN, intent.desiredState());
+    }
+
+    @Test
+    void messageArrivedAcceptsTrainsTopicRootAndNormalizesAlias() {
+        MqttIntentListener listener = new MqttIntentListener(
+                new InterceptorProperties(
+                        750,
+                        5,
+                        500,
+                        "/dev/ttyUSB0",
+                        19200,
+                        "turnout1",
+                        new InterceptorProperties.Mqtt("tcp://localhost:1883", "test-client", "trains/track/turnout/+")
+                ),
+                intentService,
+                new ObjectMapper()
+        );
+
+        listener.messageArrived(
+                "trains/track/turnout/turnout1",
+                new MqttMessage("THROWN".getBytes())
+        );
+
+        ArgumentCaptor<TurnoutIntent> intentCaptor = ArgumentCaptor.forClass(TurnoutIntent.class);
+        verify(intentService).handle(intentCaptor.capture());
+
+        TurnoutIntent intent = intentCaptor.getValue();
+        assertEquals("001", intent.turnoutId());
+        assertEquals(TurnoutState.OPEN, intent.desiredState());
+    }
+
+    @Test
     void messageArrivedPreservesLegacyJsonIntentPayloads() {
         MqttIntentListener listener = new MqttIntentListener(
                 new InterceptorProperties(
@@ -64,7 +122,7 @@ class MqttIntentListenerTest {
                         "/dev/ttyUSB0",
                         19200,
                         "turnout1",
-                        new InterceptorProperties.Mqtt("tcp://localhost:1883", "test-client", "/trains/track/turnout/+")
+                        new InterceptorProperties.Mqtt("tcp://localhost:1883", "test-client", "trains/track/turnout/+")
                 ),
                 intentService,
                 new ObjectMapper()
@@ -93,6 +151,43 @@ class MqttIntentListenerTest {
     }
 
     @Test
+    void messageArrivedNormalizesJsonTurnoutIdAlias() {
+        MqttIntentListener listener = new MqttIntentListener(
+                new InterceptorProperties(
+                        750,
+                        5,
+                        500,
+                        "/dev/ttyUSB0",
+                        19200,
+                        "turnout1",
+                        new InterceptorProperties.Mqtt("tcp://localhost:1883", "test-client", "trains/track/turnout/+")
+                ),
+                intentService,
+                new ObjectMapper()
+        );
+
+        listener.messageArrived(
+                                                                "trains/track/turnout/turnout1",
+                new MqttMessage("""
+                        {
+                          \"commandId\": \"cmd-456\",
+                          \"turnoutId\": \"turnout1\",
+                          \"desiredState\": \"CLOSED\"
+                        }
+                        """.getBytes())
+        );
+
+        ArgumentCaptor<TurnoutIntent> intentCaptor = ArgumentCaptor.forClass(TurnoutIntent.class);
+        verify(intentService).handle(intentCaptor.capture());
+
+        TurnoutIntent intent = intentCaptor.getValue();
+        assertEquals("cmd-456", intent.commandId());
+        assertEquals("cmd-456", intent.correlationId());
+        assertEquals("001", intent.turnoutId());
+        assertEquals(TurnoutState.CLOSED, intent.desiredState());
+    }
+
+    @Test
     void messageArrivedIgnoresUnexpectedPlainTextTopic() {
         MqttIntentListener listener = new MqttIntentListener(
                 new InterceptorProperties(
@@ -102,7 +197,7 @@ class MqttIntentListenerTest {
                         "/dev/ttyUSB0",
                         19200,
                         "turnout1",
-                        new InterceptorProperties.Mqtt("tcp://localhost:1883", "test-client", "/trains/track/turnout/+")
+                        new InterceptorProperties.Mqtt("tcp://localhost:1883", "test-client", "trains/track/turnout/+")
                 ),
                 intentService,
                 new ObjectMapper()
@@ -115,4 +210,28 @@ class MqttIntentListenerTest {
 
         verify(intentService, never()).handle(org.mockito.ArgumentMatchers.any());
     }
+
+        @Test
+        void messageArrivedIgnoresTrackRootWhenStrictTrainsRootConfigured() {
+                MqttIntentListener listener = new MqttIntentListener(
+                                new InterceptorProperties(
+                                                750,
+                                                5,
+                                                500,
+                                                "/dev/ttyUSB0",
+                                                19200,
+                                                "turnout1",
+                                                new InterceptorProperties.Mqtt("tcp://localhost:1883", "test-client", "trains/track/turnout/+")
+                                ),
+                                intentService,
+                                new ObjectMapper()
+                );
+
+                listener.messageArrived(
+                                "track/turnout/001",
+                                new MqttMessage("THROWN".getBytes())
+                );
+
+                verify(intentService, never()).handle(org.mockito.ArgumentMatchers.any());
+        }
 }

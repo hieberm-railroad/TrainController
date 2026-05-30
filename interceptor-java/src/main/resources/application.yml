@@ -14,7 +14,7 @@ interceptor:
   mqtt:
     broker-uri: tcp://localhost:1883
     client-id: train-interceptor-1
-    inbound-topic: track/turnout/+
+    inbound-topic: trains/track/turnout/+
 
 management:
   endpoints:

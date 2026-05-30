@@ -9,6 +9,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
@@ -24,6 +25,8 @@ import org.springframework.stereotype.Component;
 public class MqttIntentListener implements MqttCallback {
 
     private static final Logger log = LoggerFactory.getLogger(MqttIntentListener.class);
+    private static final String CANONICAL_TURNOUT_ID = "001";
+    private static final Set<String> CANONICAL_TURNOUT_ALIASES = Set.of("001", "turnout1");
 
     private final InterceptorProperties interceptorProperties;
     private final IntentService intentService;
@@ -59,7 +62,7 @@ public class MqttIntentListener implements MqttCallback {
 
         log.info("MQTT listener connected broker={} topic={}",
                 interceptorProperties.mqtt().brokerUri(),
-                interceptorProperties.mqtt().inboundTopic());
+            interceptorProperties.mqtt().inboundTopic());
     }
 
     @PreDestroy
@@ -107,10 +110,15 @@ public class MqttIntentListener implements MqttCallback {
             return null;
         }
 
+        String turnoutId = normalizeTurnoutId(dto.turnoutId(), topic);
+        if (turnoutId == null) {
+            return null;
+        }
+
         return new TurnoutIntent(
                 dto.commandId(),
                 dto.correlationId() != null ? dto.correlationId() : dto.commandId(),
-                dto.turnoutId(),
+                turnoutId,
                 desiredState,
                 null
         );
@@ -120,6 +128,11 @@ public class MqttIntentListener implements MqttCallback {
         String turnoutId = extractTurnoutId(topic);
         if (turnoutId == null) {
             log.warn("Ignoring MQTT message with unexpected topic={} payload={}", topic, payload);
+            return null;
+        }
+
+        turnoutId = normalizeTurnoutId(turnoutId, topic);
+        if (turnoutId == null) {
             return null;
         }
 
@@ -133,11 +146,26 @@ public class MqttIntentListener implements MqttCallback {
     }
 
     private String extractTurnoutId(String topic) {
-        String prefix = interceptorProperties.mqtt().inboundTopic().replace("+", "");
-        if (!topic.startsWith(prefix) || topic.length() <= prefix.length()) {
+        String normalizedTopic = topic == null ? "" : topic.strip();
+        if (normalizedTopic.startsWith("/")) {
+            normalizedTopic = normalizedTopic.substring(1);
+        }
+
+        String configuredPrefix = interceptorProperties.mqtt().inboundTopic().replace("+", "").strip();
+        if (configuredPrefix.startsWith("/")) {
+            configuredPrefix = configuredPrefix.substring(1);
+        }
+
+        if (!normalizedTopic.startsWith(configuredPrefix) || normalizedTopic.length() <= configuredPrefix.length()) {
             return null;
         }
-        return topic.substring(prefix.length());
+
+        String turnoutId = normalizedTopic.substring(configuredPrefix.length());
+        if (turnoutId.isBlank() || turnoutId.contains("/")) {
+            return null;
+        }
+
+        return turnoutId;
     }
 
     private TurnoutState parseDesiredState(String rawValue, String topic) {
@@ -153,6 +181,24 @@ public class MqttIntentListener implements MqttCallback {
         };
     }
 
+    private String normalizeTurnoutId(String rawTurnoutId, String topic) {
+        if (rawTurnoutId == null) {
+            log.warn("Ignoring MQTT message with null turnoutId topic={}", topic);
+            return null;
+        }
+
+        String turnoutId = rawTurnoutId.trim();
+        if (turnoutId.isEmpty()) {
+            log.warn("Ignoring MQTT message with blank turnoutId topic={}", topic);
+            return null;
+        }
+
+        if (CANONICAL_TURNOUT_ALIASES.contains(turnoutId.toLowerCase(Locale.ROOT))) {
+            return CANONICAL_TURNOUT_ID;
+        }
+
+        return turnoutId;
+    }
     @Override
     public void connectionLost(Throwable cause) {
         log.warn("MQTT connection lost: {}", cause.getMessage());
