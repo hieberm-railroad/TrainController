@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   mysql:
     image: mysql:8.4
@@ -15,6 +13,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      - traincontroller
 
   mosquitto:
     image: eclipse-mosquitto:2
@@ -23,12 +23,67 @@ services:
       - "9001:9001"
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    networks:
+      - traincontroller
+
+  migrations:
+    image: mysql:8.4
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_PWD: train
+    volumes:
+      - ../migrations:/migrations:ro
+    command: >
+      sh -c "
+        mysql -h mysql -u train train_controller < /migrations/V1__initial_schema.sql &&
+        mysql -h mysql -u train train_controller < /migrations/V2__normalized_command_model.sql &&
+        mysql -h mysql -u train train_controller < /migrations/V3__seed_default_devices.sql &&
+        mysql -h mysql -u train train_controller < /migrations/V4__device_servo_config.sql &&
+        echo 'Migrations complete'
+      "
+    networks:
+      - traincontroller
+
+  interceptor:
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+      migrations:
+        condition: service_completed_successfully
+    ports:
+      - "8080:8080"
+    environment:
+      SERIAL_PORT: /dev/ttyRS485
+      MQTT_BROKER_URI: tcp://mosquitto:1883
+      DB_USER: train
+      DB_PASSWORD: train
+    devices:
+      - /dev/serial/by-id/usb-1a86_USB_Serial-if00-port0:/dev/ttyRS485
+    networks:
+      - traincontroller
+    profiles:
+      - ""
 
   prometheus:
     image: prom/prometheus:v2.54.1
+    depends_on:
+      - interceptor
     profiles: ["observability"]
     ports:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/interceptor-alerts.yml:/etc/prometheus/interceptor-alerts.yml:ro
+    networks:
+      - traincontroller
+
+networks:
+  traincontroller:
+    driver: bridge

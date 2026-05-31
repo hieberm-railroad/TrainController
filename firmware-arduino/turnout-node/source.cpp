@@ -10,8 +10,8 @@ const uint8_t PCA9685_ADDR = 0x40;
 const uint16_t PCA9685_FREQ_HZ = 50;
 const uint16_t SERVO_MIN_PULSE = 120;
 const uint16_t SERVO_MAX_PULSE = 520;
-const uint8_t TURNOUT_OPEN_ANGLE = 110;
-const uint8_t TURNOUT_CLOSED_ANGLE = 70;
+const uint16_t TURNOUT_DEFAULT_OPEN_ANGLE = 238;
+const uint16_t TURNOUT_DEFAULT_CLOSED_ANGLE = 317;
 const uint8_t TURNOUT_COUNT = 10;
 const char NODE_ID[] = "turnout1";
 
@@ -72,7 +72,7 @@ static int turnoutIdToIndex(const String &turnoutId)
         return 7;
     if (turnoutId == "009")
         return 8;
-    if (turnoutId == "0010")
+    if (turnoutId == "010")
         return 9;
     return -1;
 }
@@ -82,7 +82,7 @@ static uint16_t angleToPulse(uint8_t angle)
     return map(angle, 0, 180, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
 }
 
-static bool setTurnoutState(const String &turnoutId, bool open)
+static bool setTurnoutState(const String &turnoutId, bool open, uint16_t openPulse, uint16_t closedPulse)
 {
     if (!pca9685Present)
     {
@@ -96,8 +96,7 @@ static bool setTurnoutState(const String &turnoutId, bool open)
     }
 
     turnoutIsOpen[turnoutIndex] = open;
-    uint16_t pulse = angleToPulse(open ? TURNOUT_OPEN_ANGLE : TURNOUT_CLOSED_ANGLE);
-    pwm.setPWM(static_cast<uint8_t>(turnoutIndex), 0, pulse);
+    pwm.setPWM(static_cast<uint8_t>(turnoutIndex), 0, open ? openPulse : closedPulse);
     return true;
 }
 
@@ -194,6 +193,11 @@ static void handleLine(const String &line, bool viaUsb)
         String messageType = framePart(line, 3);
         String turnoutId = framePart(line, 4);
         String desiredState = framePart(line, 5);
+        String openAngleStr = framePart(line, 6);
+        String closedAngleStr = framePart(line, 7);
+
+        uint16_t openPulse = openAngleStr.length() > 0 ? (uint16_t)openAngleStr.toInt() : TURNOUT_DEFAULT_OPEN_ANGLE;
+        uint16_t closedPulse = closedAngleStr.length() > 0 ? (uint16_t)closedAngleStr.toInt() : TURNOUT_DEFAULT_CLOSED_ANGLE;
 
         if (nodeId != NODE_ID)
         {
@@ -206,11 +210,11 @@ static void handleLine(const String &line, bool viaUsb)
         }
         else if (messageType == "TURNOUT" && desiredState == "OPEN")
         {
-            sendReply(buildAckFrame(NODE_ID, commandId, setTurnoutState(turnoutId, true) ? "ACCEPTED" : "REJECTED"), viaUsb);
+            sendReply(buildAckFrame(NODE_ID, commandId, setTurnoutState(turnoutId, true, openPulse, closedPulse) ? "ACCEPTED" : "REJECTED"), viaUsb);
         }
         else if (messageType == "TURNOUT" && desiredState == "CLOSED")
         {
-            sendReply(buildAckFrame(NODE_ID, commandId, setTurnoutState(turnoutId, false) ? "ACCEPTED" : "REJECTED"), viaUsb);
+            sendReply(buildAckFrame(NODE_ID, commandId, setTurnoutState(turnoutId, false, openPulse, closedPulse) ? "ACCEPTED" : "REJECTED"), viaUsb);
         }
         else
         {
@@ -234,7 +238,7 @@ void setup()
         for (uint8_t i = 0; i < TURNOUT_COUNT; i++)
         {
             turnoutIsOpen[i] = false;
-            pwm.setPWM(i, 0, angleToPulse(TURNOUT_CLOSED_ANGLE));
+            pwm.setPWM(i, 0, TURNOUT_DEFAULT_CLOSED_ANGLE);
         }
     }
     else

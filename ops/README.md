@@ -1,32 +1,98 @@
 # ops
 
-Local runtime stack for development and integration testing.
+Production startup and infrastructure configuration.
 
-## Start dependencies
+## Quick Start
+
+### Prerequisites
+
+- Docker and docker-compose
+- Java 21+ (for building interceptor image)
+- USB devices consistently named (udev rules recommended)
+
+### Automated Setup
 
 ```bash
-docker compose up -d
+./startup.sh
+```
+
+This script:
+1. Validates prerequisites
+2. Builds interceptor Docker image
+3. Starts MySQL, Mosquitto, and interceptor
+4. Applies SQL migrations automatically
+5. Verifies health checks
+
+Output includes JMRI integration instructions and endpoint details.
+
+### Manual Startup
+
+```bash
+docker-compose up -d
 ```
 
 Services:
-
-- MySQL on `localhost:3306`
+- MySQL on `localhost:3306` (user: `train`, pass: `train`)
 - Mosquitto MQTT broker on `localhost:1883`
+- Interceptor on `localhost:8080`
 
-## Optional Observability
-
-Start Prometheus with alert rules:
+### Shutdown
 
 ```bash
-docker compose --profile observability up -d prometheus
+./shutdown.sh
 ```
 
-Prometheus UI: `http://localhost:9090`
+Or: `docker-compose down`
 
-Configured files:
+## USB Device Configuration
 
+For consistent `/dev/ttyRS485` and `/dev/ttyArduino` naming, create `/etc/udev/rules.d/50-traincontroller.rules`:
+
+```udev
+# RS485 adapter (adjust vendor/product IDs for your hardware)
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", SYMLINK+="ttyRS485"
+
+# Arduino Nano (adjust vendor/product IDs for your hardware)
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="2341", ATTRS{idProduct}=="6001", SYMLINK+="ttyArduino"
+```
+
+Find your device IDs:
+```bash
+lsusb
+udevadm info --name=/dev/ttyUSB0 --export | grep -E 'ID_SERIAL|PRODUCT'
+```
+
+Apply rules:
+```bash
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+## Observability
+
+Enable Prometheus:
+
+```bash
+docker-compose --profile observability up -d
+```
+
+UI: `http://localhost:9090`
+
+Configured with:
 - `ops/prometheus/prometheus.yml`
 - `ops/prometheus/interceptor-alerts.yml`
 
-Default scrape target assumes interceptor is running on host port `8080` and exposing
-`/actuator/prometheus`.
+## Environment Overrides
+
+Docker Compose reads environment variables. Customize via `.env` or inline:
+
+```bash
+SERIAL_PORT=/dev/ttyArduino MQTT_CLIENT_ID=interceptor-prod-1 docker-compose up -d interceptor
+```
+
+Supported variables (see `ops/application.yml`):
+- `SERIAL_PORT` (default: `/dev/ttyRS485`)
+- `MQTT_BROKER_URI` (default: `tcp://mosquitto:1883`)
+- `DB_USER`, `DB_PASSWORD`
+- `SETTLE_DELAY_MS`, `MAX_RETRIES`, `RETRY_BACKOFF_MS`
+- `MQTT_INBOUND_TOPIC` (default: `trains/track/turnout/+`)

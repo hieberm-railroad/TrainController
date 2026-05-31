@@ -2,6 +2,7 @@ package com.traincontroller.interceptor.transport;
 
 import com.traincontroller.interceptor.model.AckStatus;
 import com.traincontroller.interceptor.model.TurnoutIntent;
+import com.traincontroller.interceptor.persistence.DeviceServoConfig;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Optional;
@@ -18,15 +19,24 @@ public final class SerialFrameCodec {
     }
 
     public static byte[] encodeTurnoutCommand(String nodeId, TurnoutIntent intent) {
-        return encodeTurnoutCommand(nodeId, intent.commandId(), intent.turnoutId(), intent.desiredState().name());
+        return encodeTurnoutCommand(
+                nodeId,
+                intent.commandId(),
+                intent.turnoutId(),
+                intent.desiredState().name(),
+                DeviceServoConfig.DEFAULT_OPEN_ANGLE,
+                DeviceServoConfig.DEFAULT_CLOSED_ANGLE
+        );
     }
 
     public static byte[] encodeTurnoutStateQuery(String nodeId, String turnoutId) {
         return String.format("QSTATE|%s|%s\n", nodeId, turnoutId).getBytes(StandardCharsets.US_ASCII);
     }
 
-    public static byte[] encodeTurnoutCommand(String nodeId, String commandId, String turnoutId, String desiredState) {
-        String payload = String.format("v1|%s|%s|TURNOUT|%s|%s", nodeId, commandId, turnoutId, desiredState);
+    public static byte[] encodeTurnoutCommand(String nodeId, String commandId, String turnoutId, String desiredState,
+            int openAngle, int closedAngle) {
+        String payload = String.format("v1|%s|%s|TURNOUT|%s|%s|%d|%d",
+                nodeId, commandId, turnoutId, desiredState, openAngle, closedAngle);
         int checksum = payload.chars().reduce(0, (acc, ch) -> (acc + ch) & 0xFF);
         String frame = payload + "|" + String.format("%02X", checksum) + "\n";
         return frame.getBytes(StandardCharsets.US_ASCII);

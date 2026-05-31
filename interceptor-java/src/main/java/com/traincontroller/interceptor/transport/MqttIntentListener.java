@@ -9,7 +9,6 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
-import java.util.Set;
 import java.util.UUID;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
@@ -25,8 +24,7 @@ import org.springframework.stereotype.Component;
 public class MqttIntentListener implements MqttCallback {
 
     private static final Logger log = LoggerFactory.getLogger(MqttIntentListener.class);
-    private static final String CANONICAL_TURNOUT_ID = "001";
-    private static final Set<String> CANONICAL_TURNOUT_ALIASES = Set.of("001", "turnout1");
+
 
     private final InterceptorProperties interceptorProperties;
     private final IntentService intentService;
@@ -191,10 +189,6 @@ public class MqttIntentListener implements MqttCallback {
         if (turnoutId.isEmpty()) {
             log.warn("Ignoring MQTT message with blank turnoutId topic={}", topic);
             return null;
-        }
-
-        if (CANONICAL_TURNOUT_ALIASES.contains(turnoutId.toLowerCase(Locale.ROOT))) {
-            return CANONICAL_TURNOUT_ID;
         }
 
         return turnoutId;

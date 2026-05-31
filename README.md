@@ -16,27 +16,64 @@ TrainController is a monorepo for model railroad control with JMRI as orchestrat
 - `firmware-arduino/` PlatformIO firmware for turnout and signal nodes.
 - `protocol/` Message contracts and examples.
 - `migrations/` SQL migrations for MySQL schema.
-- `ops/` Local runtime stack (MySQL, MQTT broker).
+- `ops/` Production startup and configuration.
 - `tests/` Integration and soak-test harness placeholders.
 - `docs/` Architecture and operational documentation.
 
-## Start Order
+## Quick Start
 
-1. Bring up local dependencies from `ops/docker-compose.yml`.
-2. Apply SQL migrations in `migrations/`.
-3. Run Java interceptor from `interceptor-java/`.
-4. Flash firmware from `firmware-arduino/`.
-
-## Quick End-to-End Smoke
-
-After dependencies, migrations, interceptor, and firmware are running, execute:
+### Full Stack (MySQL + Mosquitto + Interceptor)
 
 ```bash
-./tests/mqtt_e2e_smoke.sh
+cd ops
+./startup.sh
 ```
 
-Expected outcome:
+This script builds the interceptor, starts all services, and verifies health. See [ops/README.md](ops/README.md) for details.
 
-- Script publishes an MQTT turnout intent.
-- Command reaches `VERIFIED` in `tc_command`.
-- `device_state` for `turnout1` matches desired and actual `OPEN` with quality `GOOD`.
+### Individual Service Startup (Development)
+
+**Bring up infrastructure:**
+```bash
+cd ops
+docker-compose up -d mysql mosquitto
+```
+
+**Run interceptor locally (useful for debugging):**
+```bash
+cd interceptor-java
+mvn spring-boot:run
+```
+
+**Flash firmware:**
+```bash
+cd firmware-arduino
+pio run -e turnout_node -t upload
+```
+
+## JMRI Integration
+
+Configure JMRI to publish turnout state change intents via MQTT:
+
+- **Topic**: `trains/track/turnout/turnout1`
+- **Payload**: `THROWN` (maps to OPEN) or `CLOSED`
+- **QoS**: 0 or 1
+
+Example test command:
+```bash
+mosquitto_pub -h localhost -t trains/track/turnout/turnout1 -m THROWN
+```
+
+## System Requirements
+
+- **Java 21+** (for building interceptor)
+- **Docker & docker-compose**
+- **Arduino Nano** with RS485 breakout
+- **RS485 USB adapter** with device path `/dev/ttyRS485` (configurable via udev rules)
+
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Design Documents](docs/design/)
+- [Operations & Soak Tests](docs/operations/)
+- [Hardware Soak Validation](docs/operations/hardware-soak-validation.md)

@@ -1,6 +1,8 @@
 package com.traincontroller.interceptor.transport;
 
 import com.traincontroller.interceptor.config.InterceptorProperties;
+import com.traincontroller.interceptor.persistence.DeviceServoConfig;
+import com.traincontroller.interceptor.persistence.DeviceServoConfigRepository;
 import com.traincontroller.interceptor.persistence.TcCommandEntity;
 import java.io.IOException;
 import java.util.Optional;
@@ -17,22 +19,33 @@ public class SerialCommandTransportAdapter implements CommandTransportAdapter {
 
     private final SerialExchangeClient serialExchangeClient;
     private final InterceptorProperties interceptorProperties;
+    private final DeviceServoConfigRepository deviceServoConfigRepository;
 
     public SerialCommandTransportAdapter(
             SerialExchangeClient serialExchangeClient,
-            InterceptorProperties interceptorProperties
+            InterceptorProperties interceptorProperties,
+            DeviceServoConfigRepository deviceServoConfigRepository
     ) {
         this.serialExchangeClient = serialExchangeClient;
         this.interceptorProperties = interceptorProperties;
+        this.deviceServoConfigRepository = deviceServoConfigRepository;
     }
 
     @Override
     public TransportSendResult send(TcCommandEntity command) {
+        DeviceServoConfig servoConfig = deviceServoConfigRepository.findByDeviceId(command.deviceId())
+                .orElseGet(() -> {
+                    log.warn("No servo config found for deviceId={}, using defaults", command.deviceId());
+                    return DeviceServoConfig.defaultConfig(command.deviceId());
+                });
+
         byte[] frame = SerialFrameCodec.encodeTurnoutCommand(
                 command.nodeId(),
                 command.commandId(),
                 command.deviceId(),
-                command.desiredState()
+                command.desiredState(),
+                servoConfig.openAngle(),
+                servoConfig.closedAngle()
         );
 
         final String response;

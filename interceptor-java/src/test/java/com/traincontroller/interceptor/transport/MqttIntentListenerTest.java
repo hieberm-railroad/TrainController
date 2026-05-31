@@ -55,7 +55,7 @@ class MqttIntentListenerTest {
     }
 
     @Test
-    void messageArrivedNormalizesNativeJmriTopicTurnoutIdAlias() {
+    void messageArrivedPassesThroughNativeJmriTopicTurnoutId() {
         MqttIntentListener listener = new MqttIntentListener(
                 new InterceptorProperties(
                         750,
@@ -79,12 +79,12 @@ class MqttIntentListenerTest {
         verify(intentService).handle(intentCaptor.capture());
 
         TurnoutIntent intent = intentCaptor.getValue();
-        assertEquals("001", intent.turnoutId());
+        assertEquals("turnout1", intent.turnoutId());
         assertEquals(TurnoutState.OPEN, intent.desiredState());
     }
 
     @Test
-    void messageArrivedAcceptsTrainsTopicRootAndNormalizesAlias() {
+    void messageArrivedAcceptsTrainsTopicRoot() {
         MqttIntentListener listener = new MqttIntentListener(
                 new InterceptorProperties(
                         750,
@@ -108,7 +108,7 @@ class MqttIntentListenerTest {
         verify(intentService).handle(intentCaptor.capture());
 
         TurnoutIntent intent = intentCaptor.getValue();
-        assertEquals("001", intent.turnoutId());
+        assertEquals("turnout1", intent.turnoutId());
         assertEquals(TurnoutState.OPEN, intent.desiredState());
     }
 
@@ -151,7 +151,7 @@ class MqttIntentListenerTest {
     }
 
     @Test
-    void messageArrivedNormalizesJsonTurnoutIdAlias() {
+    void messageArrivedPassesThroughJsonTurnoutId() {
         MqttIntentListener listener = new MqttIntentListener(
                 new InterceptorProperties(
                         750,
@@ -183,7 +183,7 @@ class MqttIntentListenerTest {
         TurnoutIntent intent = intentCaptor.getValue();
         assertEquals("cmd-456", intent.commandId());
         assertEquals("cmd-456", intent.correlationId());
-        assertEquals("001", intent.turnoutId());
+        assertEquals("turnout1", intent.turnoutId());
         assertEquals(TurnoutState.CLOSED, intent.desiredState());
     }
 

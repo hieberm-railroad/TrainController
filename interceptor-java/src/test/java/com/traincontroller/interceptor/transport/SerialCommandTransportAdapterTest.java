@@ -4,16 +4,22 @@ import com.traincontroller.interceptor.config.InterceptorProperties;
 import com.traincontroller.interceptor.model.AckStatus;
 import com.traincontroller.interceptor.model.CommandStatus;
 import com.traincontroller.interceptor.model.OperationType;
+import com.traincontroller.interceptor.persistence.DeviceServoConfig;
+import com.traincontroller.interceptor.persistence.DeviceServoConfigRepository;
 import com.traincontroller.interceptor.persistence.TcCommandEntity;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -22,12 +28,22 @@ class SerialCommandTransportAdapterTest {
     @Mock
     private SerialExchangeClient serialExchangeClient;
 
+    @Mock
+    private DeviceServoConfigRepository deviceServoConfigRepository;
+
+    private SerialCommandTransportAdapter adapter() {
+        lenient().when(deviceServoConfigRepository.findByDeviceId(anyString()))
+                .thenReturn(Optional.of(DeviceServoConfig.defaultConfig("turnout-12")));
+        return new SerialCommandTransportAdapter(
+                serialExchangeClient,
+                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null, null),
+                deviceServoConfigRepository
+        );
+    }
+
     @Test
     void sendMapsValidAckResponse() throws Exception {
-        SerialCommandTransportAdapter adapter = new SerialCommandTransportAdapter(
-                serialExchangeClient,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null, null)
-        );
+        SerialCommandTransportAdapter adapter = adapter();
 
         String payload = "v1|turnout-12|cmd-123|ACK|ACCEPTED";
         int checksum = payload.chars().reduce(0, (acc, ch) -> (acc + ch) & 0xFF);
@@ -43,10 +59,7 @@ class SerialCommandTransportAdapterTest {
 
     @Test
     void sendReturnsTransportErrorOnInvalidAckFrame() throws Exception {
-        SerialCommandTransportAdapter adapter = new SerialCommandTransportAdapter(
-                serialExchangeClient,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null, null)
-        );
+        SerialCommandTransportAdapter adapter = adapter();
 
         when(serialExchangeClient.exchange(any(), anyInt())).thenReturn("bad-frame\n");
 
@@ -58,10 +71,7 @@ class SerialCommandTransportAdapterTest {
 
     @Test
     void sendReturnsTransportErrorOnAckCommandMismatch() throws Exception {
-        SerialCommandTransportAdapter adapter = new SerialCommandTransportAdapter(
-                serialExchangeClient,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null, null)
-        );
+        SerialCommandTransportAdapter adapter = adapter();
 
         String payload = "v1|turnout-12|cmd-other|ACK|ACCEPTED";
         int checksum = payload.chars().reduce(0, (acc, ch) -> (acc + ch) & 0xFF);
@@ -76,10 +86,7 @@ class SerialCommandTransportAdapterTest {
 
     @Test
     void sendReturnsTransportErrorOnAckNodeMismatch() throws Exception {
-        SerialCommandTransportAdapter adapter = new SerialCommandTransportAdapter(
-                serialExchangeClient,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null, null)
-        );
+        SerialCommandTransportAdapter adapter = adapter();
 
         String payload = "v1|turnout-99|cmd-123|ACK|ACCEPTED";
         int checksum = payload.chars().reduce(0, (acc, ch) -> (acc + ch) & 0xFF);
@@ -94,10 +101,7 @@ class SerialCommandTransportAdapterTest {
 
     @Test
     void sendReturnsNoAckWhenNoResponse() throws Exception {
-        SerialCommandTransportAdapter adapter = new SerialCommandTransportAdapter(
-                serialExchangeClient,
-                new InterceptorProperties(750, 5, 500, "/dev/ttyUSB0", 19200, null, null)
-        );
+        SerialCommandTransportAdapter adapter = adapter();
 
         when(serialExchangeClient.exchange(any(), anyInt())).thenReturn(null);
 

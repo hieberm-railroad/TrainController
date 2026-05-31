@@ -26,7 +26,7 @@ class SerialFrameCodecTest {
 
         String frame = new String(SerialFrameCodec.encodeTurnoutCommand("node-1", intent), StandardCharsets.US_ASCII);
 
-        assertTrue(frame.startsWith("v1|node-1|cmd-1|TURNOUT|1|OPEN|"));
+        assertTrue(frame.startsWith("v1|node-1|cmd-1|TURNOUT|1|OPEN|238|317|"));
         assertTrue(frame.endsWith("\n"));
     }
 
