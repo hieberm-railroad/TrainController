@@ -10,8 +10,8 @@ const uint8_t PCA9685_ADDR = 0x40;
 const uint16_t PCA9685_FREQ_HZ = 50;
 const uint16_t SERVO_MIN_PULSE = 120;
 const uint16_t SERVO_MAX_PULSE = 520;
-const uint16_t TURNOUT_DEFAULT_OPEN_ANGLE = 238;
-const uint16_t TURNOUT_DEFAULT_CLOSED_ANGLE = 317;
+const uint16_t TURNOUT_DEFAULT_OPEN_ANGLE = 317;   // THROWN = diverging
+const uint16_t TURNOUT_DEFAULT_CLOSED_ANGLE = 238; // CLOSED = straight
 const uint8_t TURNOUT_COUNT = 10;
 const char NODE_ID[] = "turnout1";
 
@@ -86,17 +86,29 @@ static bool setTurnoutState(const String &turnoutId, bool open, uint16_t openPul
 {
     if (!pca9685Present)
     {
+        Serial.println("ERROR: PCA9685 not present");
         return false;
     }
 
     int turnoutIndex = turnoutIdToIndex(turnoutId);
     if (turnoutIndex < 0)
     {
+        Serial.print("ERROR: Invalid turnoutId=");
+        Serial.println(turnoutId);
         return false;
     }
 
+    uint16_t pulseValue = open ? openPulse : closedPulse;
     turnoutIsOpen[turnoutIndex] = open;
-    pwm.setPWM(static_cast<uint8_t>(turnoutIndex), 0, open ? openPulse : closedPulse);
+
+    Serial.print("PWM: channel=");
+    Serial.print(turnoutIndex);
+    Serial.print(" state=");
+    Serial.print(open ? "OPEN" : "CLOSED");
+    Serial.print(" pulse=");
+    Serial.println(pulseValue);
+
+    pwm.setPWM(static_cast<uint8_t>(turnoutIndex), 0, pulseValue);
     return true;
 }
 
@@ -198,6 +210,19 @@ static void handleLine(const String &line, bool viaUsb)
 
         uint16_t openPulse = openAngleStr.length() > 0 ? (uint16_t)openAngleStr.toInt() : TURNOUT_DEFAULT_OPEN_ANGLE;
         uint16_t closedPulse = closedAngleStr.length() > 0 ? (uint16_t)closedAngleStr.toInt() : TURNOUT_DEFAULT_CLOSED_ANGLE;
+
+        Serial.print("CMD: node=");
+        Serial.print(nodeId);
+        Serial.print(" type=");
+        Serial.print(messageType);
+        Serial.print(" turnout=");
+        Serial.print(turnoutId);
+        Serial.print(" state=");
+        Serial.print(desiredState);
+        Serial.print(" open=");
+        Serial.print(openPulse);
+        Serial.print(" closed=");
+        Serial.println(closedPulse);
 
         if (nodeId != NODE_ID)
         {

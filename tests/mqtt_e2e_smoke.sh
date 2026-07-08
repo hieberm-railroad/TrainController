@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OPS_DIR="${ROOT_DIR}/ops"
 
 TURNOUT_ID="${TURNOUT_ID:-turnout1}"
-TOPIC="${TOPIC:-jmri/intent/turnout/${TURNOUT_ID}}"
+TOPIC="${TOPIC:-${MQTT_INBOUND_TOPIC:-trains/track/turnout/${TURNOUT_ID}}}"
 BROKER_HOST="${BROKER_HOST:-localhost}"
 MYSQL_DB="${MYSQL_DB:-train_controller}"
 MYSQL_USER="${MYSQL_USER:-train}"
@@ -24,7 +24,8 @@ require_cmd() {
 
 mysql_query() {
     local sql="$1"
-    docker exec -i "$MYSQL_CONTAINER_ID" mysql -N -B -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DB" -e "$sql"
+    docker exec -e MYSQL_PWD="$MYSQL_PASSWORD" -i "$MYSQL_CONTAINER_ID" \
+        mysql -N -B -u"$MYSQL_USER" "$MYSQL_DB" -e "$sql"
 }
 
 require_cmd docker

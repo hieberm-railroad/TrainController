@@ -191,6 +191,20 @@ public class MqttIntentListener implements MqttCallback {
             return null;
         }
 
+        if (turnoutId.chars().allMatch(Character::isDigit)) {
+            try {
+                int numeric = Integer.parseInt(turnoutId);
+                if (numeric <= 0) {
+                    log.warn("Ignoring MQTT message with non-positive numeric turnoutId={} topic={}", rawTurnoutId, topic);
+                    return null;
+                }
+                return String.format(Locale.ROOT, "%03d", numeric);
+            } catch (NumberFormatException ex) {
+                log.warn("Ignoring MQTT message with invalid numeric turnoutId={} topic={}", rawTurnoutId, topic);
+                return null;
+            }
+        }
+
         return turnoutId;
     }
     @Override

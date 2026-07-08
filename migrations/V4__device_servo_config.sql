@@ -9,16 +9,16 @@ CREATE TABLE IF NOT EXISTS device_servo_config (
 
 -- Default angles are raw PCA9685 pulse counts (0-4095). Update per-servo after physical calibration.
 INSERT INTO device_servo_config (device_id, open_angle, closed_angle) VALUES
-    ('001', 238, 317),
-    ('002', 233, 354),
-    ('003', 233, 424),
-    ('004', 343, 185),
-    ('005', 376, 178),
-    ('006', 464,  82),
-    ('007', 343, 150),
-    ('008', 389, 207),
-    ('009', 292, 152),
-    ('010', 209, 378)
+    ('001', 317, 238),
+    ('002', 354, 233),
+    ('003', 424, 233),
+    ('004', 185, 343),
+    ('005', 178, 376),
+    ('006',  82, 464),
+    ('007', 150, 343),
+    ('008', 207, 389),
+    ('009', 152, 292),
+    ('010', 378, 209)
 ON DUPLICATE KEY UPDATE
     open_angle   = VALUES(open_angle),
     closed_angle = VALUES(closed_angle);

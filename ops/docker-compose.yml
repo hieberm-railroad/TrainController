@@ -37,6 +37,10 @@ services:
       - ../migrations:/migrations:ro
     command: >
       sh -c "
+        for i in 1 2 3 4 5; do
+          mysqladmin -h mysql -u train ping >/dev/null 2>&1 && break
+          [ $$i -lt 5 ] && sleep 2
+        done &&
         mysql -h mysql -u train train_controller < /migrations/V1__initial_schema.sql &&
         mysql -h mysql -u train train_controller < /migrations/V2__normalized_command_model.sql &&
         mysql -h mysql -u train train_controller < /migrations/V3__seed_default_devices.sql &&
@@ -65,7 +69,7 @@ services:
       DB_USER: train
       DB_PASSWORD: train
     devices:
-      - /dev/serial/by-id/usb-1a86_USB_Serial-if00-port0:/dev/ttyRS485
+      - /dev/ttyUSB0:/dev/ttyRS485
     networks:
       - traincontroller
     profiles:

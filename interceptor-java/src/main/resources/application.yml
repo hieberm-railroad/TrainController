@@ -8,7 +8,7 @@ interceptor:
   settle-delay-ms: 750
   max-retries: 5
   retry-backoff-ms: 500
-  serial-port: /dev/ttyUSB2
+  serial-port: ${SERIAL_PORT:/dev/ttyRS485}
   serial-baud: 19200
   turnout-node-id: turnout1
   mqtt:
