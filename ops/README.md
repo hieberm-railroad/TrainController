@@ -25,6 +25,78 @@ This script:
 
 Output includes JMRI integration instructions and endpoint details.
 
+### Ubuntu native install (desktop / dedicated train computer)
+
+Install the required packages:
+
+```bash
+sudo apt update
+sudo apt install -y mysql-server mysql-client mosquitto openjdk-21-jdk maven curl
+```
+
+Enable the services:
+
+```bash
+sudo systemctl enable --now mysql
+sudo systemctl enable --now mosquitto
+```
+
+Create the database and app user:
+
+```bash
+sudo mysql -uroot -e "CREATE DATABASE IF NOT EXISTS train_controller;"
+sudo mysql -uroot -e "CREATE USER IF NOT EXISTS 'train'@'localhost' IDENTIFIED BY 'train';"
+sudo mysql -uroot -e "GRANT ALL PRIVILEGES ON train_controller.* TO 'train'@'localhost';"
+sudo mysql -uroot -e "FLUSH PRIVILEGES;"
+```
+
+Apply the project schema and servo defaults:
+
+```bash
+cd ~/Arduino/TrainController
+for f in migrations/V*.sql; do
+  mysql -u train -ptrain train_controller < "$f"
+done
+```
+
+Build the interceptor:
+
+```bash
+cd ~/Arduino/TrainController/interceptor-java
+mvn -q -DskipTests package
+```
+
+### Native Startup (recommended for desktop / dedicated train computer)
+
+Add this to either `~/.bashrc` or `~/.profile`:
+
+```bash
+source ~/Arduino/TrainController/ops/start-native.sh
+start_traincontroller
+```
+
+This starts MySQL, Mosquitto, and the Java interceptor natively and preserves persisted servo state across restarts. The script checks whether `device_servo_config` already contains values before seeding default angles, and only falls back to the JSON config in `ops/servo-defaults.json` when the table is empty.
+
+`start_traincontroller` is idempotent: if the services are already running, it will skip unnecessary restarts.
+
+### Final desktop startup sequence
+
+Run this after each reboot or login on the train computer:
+
+```bash
+sudo systemctl start mysql
+sudo systemctl start mosquitto
+source ~/Arduino/TrainController/ops/start-native.sh
+start_traincontroller
+```
+
+If you prefer a one-liner for login startup:
+
+```bash
+source ~/Arduino/TrainController/ops/start-native.sh
+start_traincontroller
+```
+
 ### Manual Startup
 
 ```bash

@@ -1,0 +1,12 @@
+[
+  {"device_id": "001", "open_angle": 317, "closed_angle": 238},
+  {"device_id": "002", "open_angle": 354, "closed_angle": 233},
+  {"device_id": "003", "open_angle": 424, "closed_angle": 233},
+  {"device_id": "004", "open_angle": 185, "closed_angle": 343},
+  {"device_id": "005", "open_angle": 178, "closed_angle": 376},
+  {"device_id": "006", "open_angle": 82, "closed_angle": 464},
+  {"device_id": "007", "open_angle": 150, "closed_angle": 343},
+  {"device_id": "008", "open_angle": 207, "closed_angle": 389},
+  {"device_id": "009", "open_angle": 152, "closed_angle": 292},
+  {"device_id": "010", "open_angle": 378, "closed_angle": 209}
+]
