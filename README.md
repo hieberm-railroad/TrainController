@@ -68,8 +68,13 @@ mosquitto_pub -h localhost -t trains/track/turnout/turnout1 -m THROWN
 
 - **Java 21+** (for building interceptor)
 - **Docker & docker-compose**
-- **Arduino Nano** with RS485 breakout
-- **RS485 USB adapter** with device path `/dev/ttyRS485` (configurable via udev rules)
+- **RS485 serial adapter connected to the desktop**
+- **Arduino Nano / hardware nodes on the RS485 bus**
+- **Serial device path such as `/dev/ttyRS485`** (configurable via udev rules)
+
+## Desktop Runtime Requirements
+
+If you are using a separate desktop machine to run the actual system, see [docs/desktop-machine-requirements.md](docs/desktop-machine-requirements.md). It lists the minimum Ubuntu, MySQL, MQTT, Java, hardware, and serial-device requirements before the stack can run there.
 
 ## Documentation
 
