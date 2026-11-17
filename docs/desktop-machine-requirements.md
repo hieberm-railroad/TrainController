@@ -18,13 +18,34 @@ The runtime desktop is responsible for:
 - A dedicated desktop or headless Linux box is preferred
 - The runtime host should be stable and left running continuously when the layout is active
 
+## Get the Code onto the Desktop
+
+On the desktop machine, clone the repo and work from the repo root:
+
+```bash
+cd ~
+git clone https://github.com/hieberm-railroad/TrainController.git
+cd TrainController
+```
+
+If you only need the runtime files, this is the minimum code you need from the repo:
+
+```bash
+~/TrainController/ops
+~/TrainController/migrations
+~/TrainController/interceptor-java
+~/TrainController/README.md
+```
+
+The runtime desktop does not need the full IDE or firmware tooling chain, but it does need the runtime code and build artifacts for the Java interceptor.
+
 ## Required Software
 
 Install the following packages:
 
 ```bash
 sudo apt update
-sudo apt install -y mysql-server mysql-client mosquitto openjdk-21-jdk maven python3 curl
+sudo apt install -y mysql-server mysql-client mosquitto openjdk-21-jdk maven python3 curl git
 ```
 
 ### Minimum runtime components
@@ -67,11 +88,17 @@ done
 
 ## Required Java Build
 
-Build the interceptor jar before starting it:
+After cloning and before starting the runtime stack, build the interceptor jar:
 
 ```bash
-cd ~/Arduino/TrainController/interceptor-java
+cd ~/TrainController/interceptor-java
 mvn -q -DskipTests package
+```
+
+If the build is successful, the jar should be produced under:
+
+```bash
+~/TrainController/interceptor-java/target/interceptor-java-0.1.0-SNAPSHOT.jar
 ```
 
 ## Required Hardware
@@ -119,10 +146,11 @@ The runtime host should be able to reach:
 
 ## Required Startup Flow
 
-Use the native startup script:
+Use the native startup script from the repo root:
 
 ```bash
-source ~/Arduino/TrainController/ops/start-native.sh
+cd ~/TrainController
+source ~/TrainController/ops/start-native.sh
 start_traincontroller
 ```
 
