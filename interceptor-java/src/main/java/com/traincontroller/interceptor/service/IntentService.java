@@ -55,7 +55,11 @@ public class IntentService {
         Instant now = intent.createdAt() == null ? Instant.now() : intent.createdAt();
         String candidateIntentId = UUID.randomUUID().toString();
         String deviceId = intent.turnoutId();
-        String desiredState = intent.desiredState().name();
+        String desiredState = intent.desiredState() == null ? "OPEN" : intent.desiredState().name();
+        String currentActualState = deviceStateRepository.findLatestByDeviceId(deviceId)
+                .map(DeviceStateEntity::actualState)
+                .filter(actual -> actual != null && !actual.isBlank())
+                .orElse("OPEN");
 
         String intentId = intentRepository.upsert(new IntentEntity(
                 candidateIntentId,
@@ -100,7 +104,7 @@ public class IntentService {
         deviceStateRepository.upsert(new DeviceStateEntity(
                 deviceId,
                 desiredState,
-                null,
+                currentActualState,
                 intent.commandId(),
                 StateQuality.UNKNOWN,
                 null

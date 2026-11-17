@@ -1,12 +1,13 @@
 [
-  {"device_id": "001", "open_angle": 317, "closed_angle": 238},
-  {"device_id": "002", "open_angle": 354, "closed_angle": 233},
-  {"device_id": "003", "open_angle": 424, "closed_angle": 233},
-  {"device_id": "004", "open_angle": 185, "closed_angle": 343},
-  {"device_id": "005", "open_angle": 178, "closed_angle": 376},
-  {"device_id": "006", "open_angle": 82, "closed_angle": 464},
-  {"device_id": "007", "open_angle": 150, "closed_angle": 343},
-  {"device_id": "008", "open_angle": 207, "closed_angle": 389},
-  {"device_id": "009", "open_angle": 152, "closed_angle": 292},
-  {"device_id": "010", "open_angle": 378, "closed_angle": 209}
+  {"device_id": "1", "open_angle": 428, "closed_angle": 187},
+  {"device_id": "2", "open_angle": 279, "closed_angle": 411},
+  {"device_id": "3", "open_angle": 240, "closed_angle": 356},
+  {"device_id": "4", "open_angle": 211, "closed_angle": 345},
+  {"device_id": "5", "open_angle": 222, "closed_angle": 354},
+  {"device_id": "6", "open_angle": 319, "closed_angle": 211},
+  {"device_id": "7", "open_angle": 253, "closed_angle": 437},
+  {"device_id": "8", "open_angle": 174, "closed_angle": 376},
+  {"device_id": "9", "open_angle": 472, "closed_angle": 248},
+  {"device_id": "10", "open_angle": 163, "closed_angle": 279},
+  {"device_id": "11", "open_angle": 444, "closed_angle": 338}
 ]
